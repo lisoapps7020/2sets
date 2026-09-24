@@ -10,8 +10,8 @@ export const EXERCISES = {
 export const MAIN_BY_DAY = { push: 'dips', pull: 'pullups' };
 export const SECOND_BY_DAY = { push: 'decline_pushups', pull: 'australian_rows' };
 export const MILESTONES = { dips: 40, pullups: 20 };
-export const REST_MIN = 180;
-export const REST_MAX = 420;
+export const REST_MIN = 0;
+export const REST_MAX = 600;
 
 export function clampRest(sec) {
   const n = Number(sec);

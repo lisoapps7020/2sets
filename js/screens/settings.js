@@ -1,6 +1,6 @@
 import { el, fmtNum, fmtDate, todayISO, toast, confirmDialog } from '../ui.js';
 import { getProfile, saveProfile, getAll, put, del, latestBodyweight, exportAll, importAll, validateExport, ensureSeeds, listMeasurements } from '../db.js';
-import { clampRest, EXERCISES } from '../model.js';
+import { EXERCISES } from '../model.js';
 import { uid } from '../templates.js';
 import { applyTheme } from '../app.js';
 import { measureForm } from '../measure.js';
@@ -112,15 +112,10 @@ async function draw() {
     measureHost,
   );
 
-  // Descansos
-  const restInput = (key, label) => field(label, el('input', { class: 'input', type: 'number', inputmode: 'decimal', min: '3', max: '7', step: '0.5', value: String(profile[key] / 60),
-    onchange: (e) => { profile[key] = clampRest(Number(e.target.value) * 60); e.target.value = String(profile[key] / 60); persistProfile(); } }));
+  // Temporizador
   const notifState = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
-  const descansos = card('Descansos',
-    el('p', { class: 'muted small' }, 'Entre 3 y 7 minutos. Se pueden ajustar durante el descanso.'),
-    el('div', { class: 'grid-2' }, restInput('restApproachSec', 'Aproximación (min)'), restInput('restMainSec', 'Principal (min)')),
-    el('div', { class: 'grid-2' }, restInput('restSecondSec', 'Segundo ejercicio (min)'), restInput('restExtraSec', 'Complementos (min)')),
-    el('p', { class: 'muted small' }, 'La alarma suena en loop hasta que toques "Listo, sigo". Probala acá con el volumen del teléfono como lo usás en el gimnasio.'),
+  const descansos = card('Temporizador',
+    el('p', { class: 'muted small' }, 'El temporizador es el botón fijo de abajo. Lo manejás a mano: de 00:00 a 10:00, con presets, pausa y reinicio. La alarma suena en loop hasta que la detengas.'),
     el('div', { class: 'btn-row' },
       el('button', { type: 'button', class: 'btn', dataset: { testAlarm: '' }, onclick: () => { if (!testAlarm()) toast('Este navegador no puede reproducir audio', 'error'); } }, 'Probar alarma'),
       notifState === 'default' ? el('button', { type: 'button', class: 'btn btn-ghost', onclick: async () => { const r = await requestNotifyPermission(); toast(r === 'granted' ? 'Notificaciones activas' : 'Sin permiso de notificaciones'); draw(); } }, 'Activar notificaciones') : null,

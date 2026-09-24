@@ -1,8 +1,6 @@
-// Timer de descanso: overlay a pantalla completa, wake lock, audio silencioso, alarma y notificación.
-//
-// Sonido: el contexto de audio se crea y desbloquea en el toque de "Listo" (los teléfonos exigen un gesto),
-// y la alarma se programa en la línea de tiempo del audio para que suene aunque el sistema congele el JavaScript
-// con la pantalla bloqueada. Se repite tres veces hasta que el usuario cierra el descanso.
+// Temporizador manual: widget fijo sobre las pestañas + panel con presets, de 00:00 a 10:00.
+// Alarma a prueba de teléfono: el audio se desbloquea en el toque, el sonido va en un <audio> en loop hasta que
+// el usuario lo detiene, con bips de Web Audio programados como respaldo, más vibración y notificación.
 import { clampRest } from './model.js';
 
 export const remainingMs = (endAt, now) => Math.max(0, Number(endAt) - Number(now));
@@ -32,8 +30,7 @@ export function notifyStatus(permission, hasNotification, isStandalone) {
   return { key: 'ask', text: 'Activá las notificaciones para que el aviso llegue con la pantalla bloqueada.' };
 }
 
-// Alarma como archivo WAV (16 bits, 22050 Hz): seis bips alternados y una pausa corta, pensado para reproducirse en loop
-// con un elemento <audio>. En iPhone el <audio> sigue sonando en segundo plano y no lo apaga el interruptor de silencio.
+// Alarma como archivo WAV (16 bits, 22050 Hz): seis bips alternados y una pausa corta, para reproducir en loop.
 export function alarmWavDataUri() {
   const sr = 22050;
   const beep = 0.22, gap = 0.13, n = 6, tail = 0.6;
@@ -53,8 +50,7 @@ export function alarmWavDataUri() {
     for (let k = 0; k < len; k++) {
       const t = k / sr;
       const env = Math.min(1, t / 0.01) * Math.min(1, (beep - t) / 0.04);
-      const v = Math.round(Math.sin(2 * Math.PI * f * t) * 0.9 * env * 32767);
-      view.setInt16(44 + (start + k) * 2, v, true);
+      view.setInt16(44 + (start + k) * 2, Math.round(Math.sin(2 * Math.PI * f * t) * 0.9 * env * 32767), true);
     }
   }
   let bin = '';
@@ -63,16 +59,72 @@ export function alarmWavDataUri() {
   return `data:audio/wav;base64,${b64}`;
 }
 
-const KEY = 'restEndAt';
+// ---------- modelo puro del temporizador ----------
+export function timerModel(initialSec = 300) {
+  let totalSec = clampRest(initialSec);
+  let status = 'idle';
+  let endAt = 0;
+  let pausedRemainingMs = totalSec * 1000;
+  const api = {
+    set(sec) { totalSec = clampRest(sec); status = 'idle'; pausedRemainingMs = totalSec * 1000; },
+    adjust(deltaSec, now = 0) {
+      if (status === 'running') {
+        const rem = Math.max(0, endAt - now) / 1000;
+        endAt = now + clampRest(rem + deltaSec) * 1000;
+      } else if (status === 'paused') {
+        pausedRemainingMs = clampRest(pausedRemainingMs / 1000 + deltaSec) * 1000;
+      } else {
+        api.set(totalSec + deltaSec);
+      }
+    },
+    start(now) {
+      if (status === 'running') return false;
+      const rem = status === 'paused' ? pausedRemainingMs : totalSec * 1000;
+      if (rem <= 0) return false;
+      endAt = now + rem;
+      status = 'running';
+      return true;
+    },
+    pause(now) {
+      if (status !== 'running') return;
+      pausedRemainingMs = Math.max(0, endAt - now);
+      status = 'paused';
+    },
+    reset() { status = 'idle'; pausedRemainingMs = totalSec * 1000; },
+    get(now) {
+      if (status === 'running') {
+        const rem = Math.max(0, endAt - now);
+        return { status: rem > 0 ? 'running' : 'done', remainingMs: rem, totalSec };
+      }
+      if (status === 'paused') return { status: 'paused', remainingMs: pausedRemainingMs, totalSec };
+      return { status: 'idle', remainingMs: totalSec * 1000, totalSec };
+    },
+    snapshot() { return { totalSec, status, endAt, pausedRemainingMs }; },
+    restore(snap) {
+      if (!snap) return;
+      totalSec = clampRest(snap.totalSec);
+      status = ['running', 'paused'].includes(snap.status) ? snap.status : 'idle';
+      endAt = Number(snap.endAt) || 0;
+      pausedRemainingMs = Number.isFinite(Number(snap.pausedRemainingMs)) ? Number(snap.pausedRemainingMs) : totalSec * 1000;
+    },
+  };
+  return api;
+}
+
+// ---------- estado de la UI ----------
+const KEY = 'timer.v2';
+const LAST_KEY = 'timer.last';
 const hasDOM = typeof document !== 'undefined';
-const state = { endAt: 0, fired: false, tick: null, wake: null, silent: null, alarmEl: null, alarmPrimed: false, audioCtx: null, alarmBuffer: null, scheduled: [], label: '' };
-const $ = (id) => document.getElementById(id);
+const model = timerModel(300);
+const state = { tick: null, fired: false, wake: null, silent: null, alarmEl: null, alarmPrimed: false, audioCtx: null, alarmBuffer: null, scheduled: [], label: 'Temporizador' };
+const $ = (id) => (hasDOM ? document.getElementById(id) : null);
 
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify({ endAt: state.endAt, label: state.label })); } catch {}
-}
-function forget() {
-  try { localStorage.removeItem(KEY); } catch {}
+  try {
+    const s = model.snapshot();
+    if (s.status === 'idle') localStorage.removeItem(KEY); else localStorage.setItem(KEY, JSON.stringify(s));
+    localStorage.setItem(LAST_KEY, String(s.totalSec));
+  } catch {}
 }
 
 export async function requestNotifyPermission() {
@@ -83,69 +135,119 @@ export async function requestNotifyPermission() {
   return typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
 }
 
-export function startRest(seconds, { label = 'Descanso' } = {}) {
-  const sec = clampRest(seconds);
-  state.endAt = Date.now() + sec * 1000;
+// ---------- API pública ----------
+export function getTimer() { return model.get(Date.now()); }
+export function isResting() { return model.get(Date.now()).status === 'running'; }
+
+export function setTimer(sec) {
+  stopAlarmLoop();
+  cancelScheduled();
   state.fired = false;
-  state.label = label;
+  model.set(sec);
   persist();
+  draw();
+}
+
+export function adjustTimer(deltaSec) {
+  const now = Date.now();
+  const st = model.get(now).status;
+  if (st === 'done') { model.reset(); stopAlarmLoop(); state.fired = false; }
+  model.adjust(deltaSec, now);
+  if (model.get(now).status === 'running') scheduleAlarm(model.get(now).remainingMs / 1000);
+  persist();
+  draw();
+}
+
+export function startTimer() {
+  const now = Date.now();
+  if (model.get(now).status === 'done') { model.reset(); stopAlarmLoop(); }
+  state.fired = false;
   unlockAudio();
   requestNotifyPermission();
+  if (!model.start(now)) { draw(); return false; }
   keepAwake();
   startSilentAudio();
-  scheduleAlarm(sec);
-  showOverlay();
-  loop();
-}
-
-export function adjustRest(deltaSec) {
-  if (!state.endAt) return;
-  const remaining = remainingMs(state.endAt, Date.now()) / 1000;
-  const next = clampRest(remaining + deltaSec);
-  state.endAt = Date.now() + next * 1000;
-  state.fired = false;
-  $('rest-overlay')?.classList.remove('done');
-  if ($('rest-title')) $('rest-title').textContent = 'Descanso';
+  scheduleAlarm(model.get(now).remainingMs / 1000);
   persist();
-  keepAwake();
-  unlockAudio();
-  scheduleAlarm(next);
   loop();
+  return true;
 }
 
-export function skipRest() {
-  stop();
-  hideOverlay();
+export function pauseTimer() {
+  model.pause(Date.now());
+  cancelScheduled();
+  releaseWake();
+  persist();
+  draw();
 }
 
+export function resetTimer() {
+  clearInterval(state.tick);
+  state.tick = null;
+  model.reset();
+  state.fired = false;
+  cancelScheduled();
+  stopAlarmLoop();
+  stopSilentAudio();
+  releaseWake();
+  persist();
+  draw();
+}
+
+export function openTimer() {
+  const sheet = $('rest-overlay');
+  if (!sheet) return;
+  sheet.hidden = false;
+  document.addEventListener('pointerdown', onFirstTouch, { once: true });
+  draw();
+}
+
+export function closeTimer() {
+  const sheet = $('rest-overlay');
+  if (sheet) sheet.hidden = true;
+  if (model.get(Date.now()).status === 'done') resetTimer();
+}
+
+export function toggleTimer() {
+  const sheet = $('rest-overlay');
+  if (!sheet) return;
+  if (sheet.hidden) openTimer(); else closeTimer();
+}
+
+// Compatibilidad: arrancar directo con una duración y abrir el panel.
+export function startRest(seconds, { label = 'Temporizador' } = {}) {
+  state.label = label;
+  setTimer(seconds);
+  openTimer();
+  startTimer();
+}
+export const adjustRest = adjustTimer;
+export function skipRest() { resetTimer(); closeTimer(); }
+
+// Al abrir la app: si había un temporizador corriendo o pausado, se retoma (si ya venció, suena al primer toque).
 export function restoreRest() {
   try {
+    const last = Number(localStorage.getItem(LAST_KEY));
+    if (Number.isFinite(last) && last > 0) model.set(last);
     const raw = localStorage.getItem(KEY);
-    if (!raw) return false;
-    const { endAt, label } = JSON.parse(raw);
-    state.endAt = Number(endAt) || 0;
-    state.label = label || 'Descanso';
-    state.fired = false;
-    showOverlay();
-    // Tras una recarga no hay gesto: el sonido se habilita con el primer toque en la pantalla.
-    document.addEventListener('pointerdown', onFirstTouch, { once: true });
-    loop();
+    if (!raw) { draw(); return false; }
+    model.restore(JSON.parse(raw));
+    const st = model.get(Date.now()).status;
+    if (st === 'running' || st === 'done') { openTimer(); loop(); }
+    else draw();
     return true;
   } catch {
     return false;
   }
 }
+export const restoreTimer = restoreRest;
 
 function onFirstTouch() {
-  if (!state.endAt) return;
   unlockAudio();
-  if (state.fired) { playAlarmLoop(); return; }
-  scheduleAlarm(remainingMs(state.endAt, Date.now()) / 1000);
+  const st = model.get(Date.now());
+  if (st.status === 'done' && state.fired) { playAlarmLoop(); return; }
+  if (st.status === 'running') scheduleAlarm(st.remainingMs / 1000);
   updateStatus();
-}
-
-export function isResting() {
-  return !!state.endAt && !state.fired;
 }
 
 // Suena la alarma un par de segundos, para probar el volumen del teléfono desde Ajustes.
@@ -167,9 +269,11 @@ export function debugAudio() {
     hasBuffer: !!state.alarmBuffer,
     primed: state.alarmPrimed,
     loopPlaying: !!state.alarmEl && !state.alarmEl.paused && state.alarmEl.loop,
+    status: model.get(Date.now()).status,
   };
 }
 
+// ---------- loop y dibujo ----------
 function loop() {
   clearInterval(state.tick);
   state.tick = setInterval(draw, 250);
@@ -179,49 +283,39 @@ function loop() {
 function draw() {
   if (!hasDOM) return;
   const now = Date.now();
-  const ms = remainingMs(state.endAt, now);
+  const st = model.get(now);
+  const time = fmtMMSS(st.remainingMs);
   const t = $('rest-time');
-  if (t) t.textContent = fmtMMSS(ms);
-  if (shouldFire(state.endAt, now, state.fired)) fire();
+  if (t) t.textContent = time;
+  const pill = $('timer-pill');
+  if (pill) {
+    pill.textContent = st.status === 'running' ? `⏱ ${time}` : st.status === 'paused' ? `⏸ ${time}` : st.status === 'done' ? '⏰ ¡Tiempo!' : '⏱ Temporizador';
+    pill.dataset.status = st.status;
+  }
+  const startBtn = $('rest-start');
+  if (startBtn) startBtn.textContent = st.status === 'running' ? 'Pausar' : st.status === 'paused' ? 'Reanudar' : st.status === 'done' ? 'Otra vez' : 'Iniciar';
+  const skip = $('rest-skip');
+  if (skip) skip.textContent = st.status === 'done' ? 'Detener alarma' : 'Cerrar';
+  const sheet = $('rest-overlay');
+  if (sheet) sheet.classList.toggle('done', st.status === 'done');
+  const title = $('rest-title');
+  if (title) title.textContent = st.status === 'done' ? '¡Tiempo cumplido!' : st.status === 'running' ? 'Corriendo' : st.status === 'paused' ? 'En pausa' : 'Elegí el tiempo';
+  for (const b of document.querySelectorAll('[data-preset]')) b.classList.toggle('on', st.status === 'idle' && Number(b.dataset.preset) === st.totalSec);
+  if (st.status === 'done' && !state.fired) fire();
+  if (st.status !== 'running' && st.status !== 'done') { clearInterval(state.tick); state.tick = null; }
 }
 
 function fire() {
   state.fired = true;
   clearInterval(state.tick);
-  // Primero el <audio> en loop (suena hasta que el usuario cierra); si no puede, quedan los sonidos programados en Web Audio.
+  state.tick = null;
   try { state.audioCtx?.resume?.(); } catch {}
   playAlarmLoop();
   vibrate();
   notify();
-  $('rest-overlay')?.classList.add('done');
-  if ($('rest-title')) $('rest-title').textContent = 'Descanso terminado';
+  openTimer();
   releaseWake();
-  forget();
-}
-
-function stop() {
-  clearInterval(state.tick);
-  state.endAt = 0;
-  state.fired = false;
-  cancelScheduled();
-  stopAlarmLoop();
-  stopSilentAudio();
-  releaseWake();
-  forget();
-}
-
-function showOverlay() {
-  const o = $('rest-overlay');
-  if (!o) return;
-  o.classList.remove('done');
-  if ($('rest-label')) $('rest-label').textContent = state.label;
-  if ($('rest-title')) $('rest-title').textContent = 'Descanso';
-  o.hidden = false;
-  updateStatus();
-}
-function hideOverlay() {
-  const o = $('rest-overlay');
-  if (o) o.hidden = true;
+  persist();
 }
 
 function isStandalone() {
@@ -235,12 +329,12 @@ function updateStatus() {
   if (!el) return;
   const hasN = typeof Notification !== 'undefined';
   const st = notifyStatus(hasN ? Notification.permission : 'default', hasN, isStandalone());
-  const sound = state.audioCtx?.state === 'running' ? 'Sonido listo.' : 'Tocá la pantalla para habilitar el sonido.';
+  const sound = state.audioCtx?.state === 'running' ? 'Sonido listo.' : 'Tocá Iniciar para habilitar el sonido.';
   el.textContent = `${sound} ${st.text}`;
   if (btn) btn.hidden = st.key !== 'ask';
 }
 
-// ---- pantalla encendida ----
+// ---------- pantalla encendida ----------
 async function keepAwake() {
   try {
     if (state.wake && !state.wake.released) return;
@@ -252,7 +346,7 @@ function releaseWake() {
   state.wake = null;
 }
 
-// ---- audio ----
+// ---------- audio ----------
 function getCtx() {
   try {
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -261,7 +355,6 @@ function getCtx() {
     return state.audioCtx;
   } catch { return null; }
 }
-
 function getAlarmEl() {
   try {
     if (!state.alarmEl) {
@@ -274,20 +367,17 @@ function getAlarmEl() {
     return state.alarmEl;
   } catch { return null; }
 }
-
-// "Activa" el elemento de la alarma dentro del gesto: un play() seguido de pause() habilita reproducirlo después sin gesto.
 function primeAlarmEl() {
   const el = getAlarmEl();
   if (!el || state.alarmPrimed) return;
   const done = () => { try { el.pause(); el.currentTime = 0; } catch {} el.muted = false; state.alarmPrimed = true; };
   try {
-    el.muted = true; // la activación no tiene que escucharse
+    el.muted = true;
     const p = el.play();
     if (p && p.then) p.then(done).catch(() => { el.muted = false; });
     else done();
   } catch { el.muted = false; }
 }
-
 function playAlarmLoop() {
   const el = getAlarmEl();
   if (!el) return;
@@ -295,21 +385,15 @@ function playAlarmLoop() {
     el.loop = true;
     el.currentTime = 0;
     const p = el.play();
-    if (p && p.then) {
-      p.then(() => cancelScheduled()).catch(() => { if (!state.scheduled.length) scheduleAlarm(0); });
-    } else {
-      cancelScheduled();
-    }
+    if (p && p.then) p.then(() => cancelScheduled()).catch(() => { if (!state.scheduled.length) scheduleAlarm(0); });
+    else cancelScheduled();
   } catch {
     if (!state.scheduled.length) scheduleAlarm(0);
   }
 }
-
 function stopAlarmLoop() {
   try { if (state.alarmEl) { state.alarmEl.pause(); state.alarmEl.currentTime = 0; } } catch {}
 }
-
-// Crea o reanuda el contexto de audio y prepara el elemento de alarma. Solo tiene efecto real dentro de un gesto del usuario.
 function unlockAudio() {
   primeAlarmEl();
   const ctx = getCtx();
@@ -318,8 +402,6 @@ function unlockAudio() {
   if (!state.alarmBuffer) state.alarmBuffer = buildAlarmBuffer(ctx);
   updateStatus();
 }
-
-// Seis bips alternados (880 y 1175 Hz), unos 2 segundos, con envolvente para que no chasqueen.
 function buildAlarmBuffer(ctx) {
   const sr = ctx.sampleRate;
   const beep = 0.22, gap = 0.13, n = 6;
@@ -338,13 +420,10 @@ function buildAlarmBuffer(ctx) {
   }
   return buf;
 }
-
 function cancelScheduled() {
   for (const src of state.scheduled) { try { src.stop(); } catch {} }
   state.scheduled = [];
 }
-
-// Programa la alarma en la línea de tiempo del audio: al terminar y dos repeticiones más.
 function scheduleAlarm(remainingSec) {
   cancelScheduled();
   const ctx = state.audioCtx;
@@ -354,17 +433,14 @@ function scheduleAlarm(remainingSec) {
     try {
       const src = ctx.createBufferSource();
       src.buffer = state.alarmBuffer;
-      const gain = ctx.createGain();
-      gain.gain.value = 1;
-      src.connect(gain).connect(ctx.destination);
+      src.connect(ctx.destination);
       src.start(t0 + off);
       state.scheduled.push(src);
     } catch {}
   }
 }
-
 function silentWavDataUri() {
-  const rate = 8000, seconds = 1, n = rate * seconds;
+  const rate = 8000, n = rate;
   const buf = new Uint8Array(44 + n);
   const view = new DataView(buf.buffer);
   const str = (o, s) => { for (let i = 0; i < s.length; i++) buf[o + i] = s.charCodeAt(i); };
@@ -377,7 +453,6 @@ function silentWavDataUri() {
   for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
   return `data:audio/wav;base64,${btoa(bin)}`;
 }
-// Audio silencioso en loop: mantiene viva la sesión de audio con la pantalla bloqueada (sobre todo en iPhone).
 function startSilentAudio() {
   try {
     if (!state.silent) {
@@ -397,28 +472,32 @@ function vibrate() {
 async function notify() {
   try {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-    const opts = { body: state.label, tag: 'rest', renotify: true, vibrate: [300, 100, 300], icon: 'assets/icons/icon-192.png' };
+    const opts = { body: 'Se cumplió el tiempo del temporizador', tag: 'timer', renotify: true, vibrate: [300, 100, 300], icon: 'assets/icons/icon-192.png' };
     const reg = await navigator.serviceWorker?.getRegistration?.();
-    if (reg) await reg.showNotification('Descanso terminado', opts);
-    else new Notification('Descanso terminado', opts);
+    if (reg) await reg.showNotification('¡Tiempo cumplido!', opts);
+    else new Notification('¡Tiempo cumplido!', opts);
   } catch {}
 }
 
-// ---- wiring ----
+// ---------- wiring ----------
 if (hasDOM) {
   const wire = () => {
-    $('rest-minus')?.addEventListener('click', () => adjustRest(-30));
-    $('rest-plus')?.addEventListener('click', () => adjustRest(30));
-    $('rest-skip')?.addEventListener('click', () => skipRest());
+    $('timer-pill')?.addEventListener('click', toggleTimer);
+    $('rest-minus')?.addEventListener('click', () => adjustTimer(-30));
+    $('rest-plus')?.addEventListener('click', () => adjustTimer(30));
+    $('rest-start')?.addEventListener('click', () => { const st = model.get(Date.now()).status; if (st === 'running') pauseTimer(); else startTimer(); });
+    $('rest-reset')?.addEventListener('click', () => resetTimer());
+    $('rest-skip')?.addEventListener('click', () => { const st = model.get(Date.now()).status; if (st === 'done') resetTimer(); closeTimer(); });
     $('rest-notify')?.addEventListener('click', () => { unlockAudio(); requestNotifyPermission(); });
+    for (const b of document.querySelectorAll('[data-preset]')) b.addEventListener('click', () => { unlockAudio(); setTimer(Number(b.dataset.preset)); });
+    draw();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
   else wire();
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && state.endAt) {
-      keepAwake();
-      try { state.audioCtx?.resume?.(); } catch {}
-      draw();
+    if (document.visibilityState === 'visible') {
+      const st = model.get(Date.now()).status;
+      if (st === 'running' || st === 'done') { keepAwake(); try { state.audioCtx?.resume?.(); } catch {} loop(); }
     }
   });
 }

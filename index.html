@@ -42,15 +42,30 @@
     <a href="#/ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 4-2.2-.6-.5-1.3 1.2-2-2.6-2.6-2 1.2-1.3-.5L13 3h-2l-.6 2.2-1.3.5-2-1.2L4.5 7.1l1.2 2-.5 1.3L3 11v2l2.2.6.5 1.3-1.2 2 2.6 2.6 2-1.2 1.3.5L11 21h2l.6-2.2 1.3-.5 2 1.2 2.6-2.6-1.2-2 .5-1.3L21 13z"/></svg><span>Ajustes</span></a>
   </nav>
 
-  <div id="rest-overlay" class="rest" hidden>
-    <p id="rest-label" class="label-caps"></p>
-    <h2 id="rest-title">Descanso</h2>
+  <button id="timer-pill" class="timer-pill" type="button" aria-label="Abrir el temporizador">⏱ Temporizador</button>
+
+  <div id="rest-overlay" class="timer-sheet" role="dialog" aria-label="Temporizador" hidden>
+    <p class="label-caps">Temporizador</p>
+    <h2 id="rest-title">Elegí el tiempo</h2>
     <div id="rest-time" class="rest-time">05:00</div>
+    <div class="presets">
+      <button type="button" class="seg-btn" data-preset="60">1 min</button>
+      <button type="button" class="seg-btn" data-preset="120">2 min</button>
+      <button type="button" class="seg-btn" data-preset="180">3 min</button>
+      <button type="button" class="seg-btn" data-preset="240">4 min</button>
+      <button type="button" class="seg-btn" data-preset="300">5 min</button>
+      <button type="button" class="seg-btn" data-preset="420">7 min</button>
+      <button type="button" class="seg-btn" data-preset="600">10 min</button>
+    </div>
     <div class="rest-actions">
       <button id="rest-minus" class="btn btn-ghost btn-dark" type="button">−30 s</button>
+      <button id="rest-start" class="btn btn-primary" type="button">Iniciar</button>
       <button id="rest-plus" class="btn btn-ghost btn-dark" type="button">+30 s</button>
     </div>
-    <button id="rest-skip" class="btn btn-primary btn-wide" type="button">Listo, sigo</button>
+    <div class="rest-actions">
+      <button id="rest-reset" class="btn btn-ghost btn-dark btn-sm" type="button">Reiniciar</button>
+      <button id="rest-skip" class="btn btn-ghost btn-dark btn-sm" type="button">Cerrar</button>
+    </div>
     <p id="rest-status" class="rest-status"></p>
     <button id="rest-notify" class="btn btn-ghost btn-dark btn-sm" type="button" hidden>Activar notificaciones</button>
   </div>

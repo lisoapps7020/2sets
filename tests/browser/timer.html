@@ -3,63 +3,85 @@
 <link rel="stylesheet" href="../../css/tokens.css"><link rel="stylesheet" href="../../css/app.css"></head>
 <body>
 <pre id="out">running</pre>
-<div id="rest-overlay" class="rest" hidden>
-  <p id="rest-label" class="label-caps"></p>
-  <h2 id="rest-title">Descanso</h2>
+<button id="timer-pill" class="timer-pill" type="button">⏱ Temporizador</button>
+<div id="rest-overlay" class="timer-sheet" hidden>
+  <p class="label-caps">Temporizador</p>
+  <h2 id="rest-title">Elegí el tiempo</h2>
   <div id="rest-time" class="rest-time">05:00</div>
+  <div class="presets">
+    <button type="button" class="seg-btn" data-preset="60">1 min</button>
+    <button type="button" class="seg-btn" data-preset="180">3 min</button>
+    <button type="button" class="seg-btn" data-preset="600">10 min</button>
+  </div>
   <div class="rest-actions">
     <button id="rest-minus" class="btn btn-ghost btn-dark" type="button">−30 s</button>
+    <button id="rest-start" class="btn btn-primary" type="button">Iniciar</button>
     <button id="rest-plus" class="btn btn-ghost btn-dark" type="button">+30 s</button>
   </div>
-  <button id="rest-skip" class="btn btn-primary btn-wide" type="button">Listo, sigo</button>
+  <div class="rest-actions">
+    <button id="rest-reset" class="btn btn-ghost btn-dark btn-sm" type="button">Reiniciar</button>
+    <button id="rest-skip" class="btn btn-ghost btn-dark btn-sm" type="button">Cerrar</button>
+  </div>
   <p id="rest-status" class="rest-status"></p>
   <button id="rest-notify" class="btn btn-ghost btn-dark btn-sm" type="button" hidden>Activar notificaciones</button>
 </div>
 <script type="module">
-import { startRest, adjustRest, skipRest, restoreRest, isResting, debugAudio } from '../../js/timer.js';
+import { setTimer, startTimer, pauseTimer, resetTimer, adjustTimer, openTimer, closeTimer, restoreRest, getTimer, debugAudio } from '../../js/timer.js';
 const out = document.getElementById('out');
 const o = document.getElementById('rest-overlay');
+const pill = document.getElementById('timer-pill');
 const time = () => document.getElementById('rest-time').textContent;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const res = {};
 try {
-  localStorage.removeItem('restEndAt');
-  startRest(200, { label: 'Prueba' });
-  res.shownOnStart = o.hidden === false;
+  localStorage.removeItem('timer.v2'); localStorage.removeItem('timer.last');
+  res.pillIdle = pill.textContent;
+  pill.click();
+  res.sheetOpenOnPill = o.hidden === false;
+  document.querySelector('[data-preset="180"]').click();
+  res.preset3 = time();
+  adjustTimer(30);
+  res.plus30 = time();
+  adjustTimer(-90);
+  res.minus90 = time();
+  setTimer(900);
+  res.max10 = time();
+  setTimer(-4);
+  res.min0 = time();
+  res.startAtZeroRefused = startTimer() === false;
+  setTimer(200);
+  document.getElementById('rest-start').click();
   await sleep(500);
-  res.audioAfterStart = debugAudio(); // contexto creado en el toque, sonido programado 3 veces, alarma activada pero en silencio
-  res.noSoundAtStart = !debugAudio().loopPlaying && !document.querySelector('audio')?.muted;
-  res.statusText = document.getElementById('rest-status').textContent;
-  res.label = document.getElementById('rest-label').textContent;
-  res.t200 = time();
-  adjustRest(-30);
-  res.tMinus = time();
-  res.audioAfterAdjust = debugAudio(); // reprogramado, sigue habiendo 3
-  adjustRest(30);
-  res.tPlus = time();
-  startRest(9999);
-  res.tMax = time();
-  res.stored = !!localStorage.getItem('restEndAt');
-  res.resting = isResting();
-  document.getElementById('rest-skip').click();
-  res.hiddenAfterSkip = o.hidden === true;
-  res.audioAfterSkip = debugAudio(); // cancelado
-  res.storedAfterSkip = localStorage.getItem('restEndAt');
-  localStorage.setItem('restEndAt', JSON.stringify({ endAt: Date.now() + 700, label: 'Restaurado' }));
-  res.restored = restoreRest();
-  res.shownAfterRestore = o.hidden === false;
-  res.labelRestored = document.getElementById('rest-label').textContent;
-  await sleep(1600);
-  res.doneClass = o.classList.contains('done');
-  res.titleDone = document.getElementById('rest-title').textContent;
-  res.tZero = time();
-  res.storedAfterFire = localStorage.getItem('restEndAt');
-  res.actionsHiddenWhenDone = getComputedStyle(document.querySelector('.rest-actions')).display === 'none';
-  res.audioAfterFire = debugAudio(); // loop del <audio> sonando hasta que el usuario cierra
+  res.running = getTimer().status;
+  res.pillRunning = pill.textContent;
+  res.audioAfterStart = debugAudio();
+  res.noSoundAtStart = !debugAudio().loopPlaying;
+  document.getElementById('rest-start').click(); // pausar
   await sleep(300);
-  res.loopPlayingAfterFire = debugAudio().loopPlaying;
+  res.paused = getTimer().status;
+  const t1 = time();
+  await sleep(600);
+  res.pausedFrozen = time() === t1;
+  document.getElementById('rest-start').click(); // reanudar
+  await sleep(300);
+  res.resumed = getTimer().status;
+  document.getElementById('rest-reset').click();
+  res.afterReset = { status: getTimer().status, time: time(), stored: localStorage.getItem('timer.v2') };
   document.getElementById('rest-skip').click();
-  res.loopStoppedAfterSkip = !debugAudio().loopPlaying;
+  res.closed = o.hidden === true;
+  // vencimiento: restaurar un temporizador que ya terminó dispara la alarma y abre el panel
+  localStorage.setItem('timer.v2', JSON.stringify({ totalSec: 60, status: 'running', endAt: Date.now() + 700, pausedRemainingMs: 0 }));
+  res.restored = restoreRest();
+  res.openAfterRestore = o.hidden === false;
+  await sleep(1600);
+  res.doneStatus = getTimer().status;
+  res.pillDone = pill.textContent;
+  res.loopPlayingAfterFire = debugAudio().loopPlaying;
+  res.skipText = document.getElementById('rest-skip').textContent;
+  document.getElementById('rest-skip').click(); // detener alarma y cerrar
+  res.loopStopped = !debugAudio().loopPlaying;
+  res.closedAfterDone = o.hidden === true;
+  res.idleAgain = getTimer().status;
   res.ok = true;
 } catch (e) { res.ok = false; res.error = String(e && e.stack || e); }
 out.textContent = 'RESULT ' + JSON.stringify(res);

@@ -4,7 +4,6 @@ import { nextDay, suggestMain, suggestSecond, MAIN_BY_DAY, SECOND_BY_DAY, EXERCI
 import { newSession, BLOCK_META, WARMUP_ITEMS, sessionDuration, uid } from '../templates.js';
 import { put } from '../db.js';
 import { setRow } from '../setrow.js';
-import { startRest } from '../timer.js';
 
 let c = null;
 let navigate = () => {};
@@ -136,16 +135,12 @@ function workout() {
   const [lo, hi] = EXERCISES[secondEx].range;
   const lastMain = lastBlock('main', mainEx);
   const lastSecond = lastBlock('second', secondEx);
-  const restMain = () => profile.restMainSec;
-  const restApproach = () => profile.restApproachSec;
-  const restSecond = () => profile.restSecondSec ?? profile.restMainSec;
-  const restExtra = () => profile.restExtraSec ?? profile.restApproachSec;
-  const restChip = (sec) => el('span', { class: 'chip chip-rest', dataset: { rest: String(sec) } }, `⏱ ${Math.round(sec / 60)} min`);
 
   const header = el('div', { class: 'row-between' },
     el('div', {},
       el('div', { class: 'row' }, el('span', { class: `chip chip-${session.day}` }, session.day), el('span', { class: 'muted small' }, fmtDate(session.date))),
       el('h1', {}, EXERCISES[mainEx].name),
+      el('p', { class: 'muted small' }, 'Para los descansos usá el Temporizador de abajo.'),
     ),
     el('button', { type: 'button', class: 'link', onclick: discard }, 'Descartar'),
   );
@@ -157,29 +152,26 @@ function workout() {
     ))),
   );
 
-  const approach = blockCard('approach', restChip(restApproach()),
+  const approach = blockCard('approach', null,
     ...b.approach.sets.map((set, i) => setRow({
       set, bands, label: `Aprox ${i + 1} · 5 reps`, onChange: persist,
-      onRest: () => startRest(restApproach(), { label: `Aproximación ${i + 1} hecha` }),
     })),
   );
 
-  const main = blockCard('main', restChip(restMain()),
+  const main = blockCard('main', null,
     el('p', { class: 'muted small' }, `${EXERCISES[mainEx].name}. Las dos series al fallo, con el peso que te haga fallar dentro del rango.`),
     ...b.main.sets.map((set, i) => setRow({
       set, bands,
       label: `Serie ${i + 1} · ${i === 0 ? `${r1[0]} a ${r1[1]}` : `${r2[0]} a ${r2[1]}`} reps`,
       hint: i === 0 ? `Entre ${r1[0]} y ${r1[1]} repeticiones. Con ${r1[1]} o más, la próxima subís peso.` : `Entre ${r2[0]} y ${r2[1]} repeticiones. Con ${r2[1]} o más, la próxima subís peso.`,
       last: lastText(lastMain, i), onChange: persist,
-      onRest: () => startRest(restMain(), { label: `Serie ${i + 1} hecha` }),
     })),
   );
 
-  const second = blockCard('second', restChip(restSecond()),
-    el('p', { class: 'muted small' }, `${EXERCISES[secondEx].name}. ${lo} a ${hi} reps al fallo. Descanso con alarma entre series.`),
+  const second = blockCard('second', null,
+    el('p', { class: 'muted small' }, `${EXERCISES[secondEx].name}. ${lo} a ${hi} reps al fallo.`),
     ...b.second.sets.map((set, i) => setRow({
       set, bands, label: `Serie ${i + 1} · ${lo} a ${hi} reps`, hint: `Entre ${lo} y ${hi} repeticiones al fallo. Con ${hi} o más en las dos series, subís carga.`, last: lastText(lastSecond, i), onChange: persist,
-      onRest: () => startRest(restSecond(), { label: `${EXERCISES[secondEx].short} ${i + 1} hecha` }),
     })),
   );
 
@@ -195,7 +187,6 @@ function workout() {
         ),
         ...item.sets.map((set, i) => setRow({
           set, bands, label: `Serie ${i + 1}`, onChange: persist,
-          onRest: () => startRest(restExtra(), { label: `${name} ${i + 1} hecha` }),
         })),
         el('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => { item.sets.push(makeSet(item.sets[item.sets.length - 1]?.load)); persist(); drawExtras(); } }, '+ serie'),
       );
@@ -215,7 +206,7 @@ function workout() {
     persist();
     drawExtras();
   });
-  const extra = blockCard('extra', restChip(restExtra()), extraHost, available.length ? picker : el('p', { class: 'muted small' }, 'No hay complementarios para este día. Agregalos en Ajustes.'));
+  const extra = blockCard('extra', null, extraHost, available.length ? picker : el('p', { class: 'muted small' }, 'No hay complementarios para este día. Agregalos en Ajustes.'));
 
   const notes = el('section', { class: 'card' },
     el('p', { class: 'label-caps' }, 'Notas'),

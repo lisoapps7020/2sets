@@ -58,3 +58,26 @@ test('alarmWavDataUri produces a WAV data URI with the beep pattern', async () =
   for (let i = 44; i < bytes.length; i += 2) peak = Math.max(peak, Math.abs(bytes.readInt16LE(i)));
   assert.ok(peak > 20000, 'la alarma es fuerte, no silenciosa');
 });
+
+test('timerModel: set, start, pause, resume, reset within 0..600', async () => {
+  const { timerModel } = await import('../js/timer.js');
+  const m = timerModel();
+  assert.deepEqual(m.get(1000), { status: 'idle', remainingMs: 300000, totalSec: 300 });
+  m.set(700);
+  assert.equal(m.get(1000).totalSec, 600);
+  m.set(90);
+  m.start(1000);
+  assert.equal(m.get(31000).remainingMs, 60000);
+  assert.equal(m.get(31000).status, 'running');
+  m.pause(31000);
+  assert.equal(m.get(99000).remainingMs, 60000);
+  assert.equal(m.get(99000).status, 'paused');
+  m.start(100000);
+  assert.equal(m.get(130000).remainingMs, 30000);
+  assert.equal(m.get(170000).status, 'done');
+  assert.equal(m.get(170000).remainingMs, 0);
+  m.reset();
+  assert.deepEqual(m.get(200000), { status: 'idle', remainingMs: 90000, totalSec: 90 });
+  m.adjust(-120);
+  assert.equal(m.get(0).totalSec, 0);
+});

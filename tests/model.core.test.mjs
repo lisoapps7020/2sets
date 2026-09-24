@@ -13,13 +13,13 @@ test('exercise targets from the method', () => {
   assert.equal(EXERCISES.pullups.day, 'pull');
 });
 
-test('clampRest keeps 3..7 minutes', () => {
-  assert.equal(REST_MIN, 180);
-  assert.equal(REST_MAX, 420);
-  assert.equal(clampRest(60), 180);
-  assert.equal(clampRest(900), 420);
+test('clampRest keeps the timer between 0 and 10 minutes', () => {
+  assert.equal(REST_MIN, 0);
+  assert.equal(REST_MAX, 600);
+  assert.equal(clampRest(-5), 0);
+  assert.equal(clampRest(900), 600);
   assert.equal(clampRest(300), 300);
-  assert.equal(clampRest('abc'), 180);
+  assert.equal(clampRest('abc'), 0);
   assert.equal(clampRest(200.4), 200);
 });
 

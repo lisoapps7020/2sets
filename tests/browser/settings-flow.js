@@ -25,11 +25,7 @@ await sleep(500);
 res.latestBw = await db.latestBodyweight();
 res.bwListed = sec('Peso corporal').innerText.includes('80,4');
 
-const [restMain, restApproach] = sec('Descansos').querySelectorAll('input');
-setInput(restMain, '6'); await sleep(200);
-setInput(restApproach, '9'); await sleep(300);
-res.rest = (({ restMainSec, restApproachSec }) => ({ restMainSec, restApproachSec }))(await db.getProfile());
-res.restApproachShown = restApproach.value;
+res.timerCard = !!sec('Temporizador') && !!sec('Temporizador').querySelector('[data-test-alarm]');
 
 const incDips = sec('Incrementos').querySelectorAll('select')[0];
 setInput(incDips, '2.5'); await sleep(300);

@@ -44,10 +44,17 @@ res.bandOptions = ap1.querySelectorAll('select option').length;
 ap1.querySelector('[data-save]').click();
 await sleep(60);
 res.approxSavedNoOverlay = $('#rest-overlay').hidden === true;
-$$('[data-block=approach] .setrow')[0].querySelector('[data-rest]').click();
-await sleep(120);
-res.overlayAfterApprox = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent, label: $('#rest-label').textContent };
+res.noRestButtons = $$('[data-rest]').length === 0;
+// Temporizador manual: pastilla fija, preset y arranque
+$('#timer-pill').click();
+await sleep(100);
+$('[data-preset="180"]').click();
+$('#rest-start').click();
+await sleep(400);
+res.timer = { open: $('#rest-overlay').hidden === false, time: $('#rest-time').textContent, pill: $('#timer-pill').textContent };
+$('#rest-reset').click();
 $('#rest-skip').click();
+res.timerClosed = $('#rest-overlay').hidden === true;
 
 // Serie 1 principal: lastre 10 kg × 8
 $$('[data-block=main] .setrow')[0].querySelectorAll('.seg-btn')[0].click();
@@ -57,10 +64,6 @@ setInput(m1.querySelector('.setrow-load input'), 10);
 setInput(m1.querySelector('.stepper-big input'), 8);
 m1.querySelector('[data-save]').click();
 await sleep(60);
-$$('[data-block=main] .setrow')[0].querySelector('[data-rest]').click();
-await sleep(120);
-res.overlayAfterMain = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent, label: $('#rest-label').textContent };
-$('#rest-skip').click();
 res.m1DoneText = $$('[data-block=main] .setrow')[0].querySelector('[data-save]').textContent;
 
 // Serie 2 principal: PC × 12
@@ -70,17 +73,11 @@ m2.querySelector('[data-save]').click();
 await sleep(60);
 
 // Secundus: 15 y 15 a PC, con su propio descanso (4 min por defecto) y alarma
-res.restChips = $$('[data-block] .chip-rest').map((c) => `${c.closest('[data-block]').dataset.block}:${c.dataset.rest}`);
 res.blockColors = $$('[data-block]').map((b) => `${b.dataset.block}:${getComputedStyle(b).borderLeftColor}`);
-let firstSecond = true;
 for (const row of $$('[data-block=second] .setrow')) {
   setInput(row.querySelector('.stepper-big input'), 15);
   row.querySelector('[data-save]').click();
   await sleep(60);
-  row.querySelector('[data-rest]').click();
-  await sleep(120);
-  if (firstSecond) { res.overlayAfterSecond = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent, label: $('#rest-label').textContent }; firstSecond = false; }
-  $('#rest-skip').click();
 }
 
 // Extra: agregar uno y una serie más
@@ -94,10 +91,6 @@ await sleep(80);
 res.extraRows = $$('[data-block=extra] .setrow').length;
 $$('[data-block=extra] .setrow')[0].querySelector('[data-save]').click();
 await sleep(60);
-$$('[data-block=extra] .setrow')[0].querySelector('[data-rest]').click();
-await sleep(120);
-res.overlayAfterExtra = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent };
-$('#rest-skip').click();
 
 // Persistencia: la sesión activa en IndexedDB refleja lo cargado
 await sleep(600);

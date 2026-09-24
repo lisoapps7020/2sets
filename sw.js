@@ -1,11 +1,11 @@
 // Service worker: cache del app shell para uso offline y notificaciones del descanso.
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.1.0';
 const CACHE = `2sets-${VERSION}`;
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './css/tokens.css', './css/app.css',
   './js/app.js', './js/ui.js', './js/db.js', './js/model.js', './js/templates.js', './js/timer.js',
-  './js/charts.js', './js/quotes.js', './js/setrow.js',
+  './js/charts.js', './js/quotes.js', './js/setrow.js', './js/backfill.js',
   './js/screens/home.js', './js/screens/session.js', './js/screens/history.js', './js/screens/progress.js', './js/screens/settings.js',
   './assets/icons/icon.svg', './assets/icons/icon-192.png', './assets/icons/icon-512.png',
 ];

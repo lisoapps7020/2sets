@@ -16,9 +16,9 @@ export function stepper(value, step, onSet, unit = '', big = false) {
 
 const MODES = [['weight', 'Lastre'], ['bodyweight', 'PC'], ['band', 'Banda']];
 
-export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDone = () => {}, label = '' }) {
-  const row = el('div', { class: 'setrow' + (set.done ? ' done' : '') });
-  const rerender = () => row.replaceWith(setRow({ set, bands, last, onChange, onDone, label }));
+export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDone = () => {}, label = '', showDone = true }) {
+  const row = el('div', { class: 'setrow' + (set.done && showDone ? ' done' : '') });
+  const rerender = () => row.replaceWith(setRow({ set, bands, last, onChange, onDone, label, showDone }));
   const bandList = Object.values(bands);
 
   const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Modo de carga' },
@@ -67,7 +67,7 @@ export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDo
       last ? el('span', { class: 'muted small' }, `Última: ${last}`) : null,
     ),
     seg,
-    el('div', { class: 'setrow-body' }, el('div', { class: 'setrow-load' }, load), reps, doneBtn),
+    el('div', { class: 'setrow-body' }, el('div', { class: 'setrow-load' }, load), reps, showDone ? doneBtn : null),
   );
   return row;
 }

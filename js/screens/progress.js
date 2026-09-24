@@ -2,6 +2,7 @@ import { el, fmtKg, fmtNum, fmtShortDate } from '../ui.js';
 import { listSessions, bandsById, getAll } from '../db.js';
 import { EXERCISES, computePRs, milestones, seriesFor } from '../model.js';
 import { lineChart } from '../charts.js';
+import { backfillForm } from '../backfill.js';
 
 const METRICS = [
   ['added', 'Lastre', 'kg'],
@@ -76,8 +77,26 @@ function draw() {
     el('div', { class: 'bar' }, el('i', { style: { width: `${m.pct}%` } })),
   ));
 
+  const formHost = el('div');
+  const openForm = () => {
+    const last = done[0];
+    formHost.replaceChildren(backfillForm({
+      bandsById: opts.bandsById,
+      bands: opts.bandsById,
+      defaults: { day: last ? (last.day === 'pull' ? 'push' : 'pull') : 'pull', bodyweightKg: last?.bodyweightKg ?? '' },
+      onSaved: () => render(c),
+      onCancel: () => formHost.replaceChildren(),
+    }));
+    formHost.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   c.replaceChildren(
     el('h1', {}, 'Progreso'),
+    el('div', { class: 'row-between' },
+      el('p', { class: 'muted small' }, '¿Anotabas en papel? Cargá esas sesiones y mirá la curva desde el día 1.'),
+      el('button', { type: 'button', class: 'btn btn-sm', onclick: openForm }, 'Cargar sesión pasada'),
+    ),
+    formHost,
     el('section', { class: 'card' },
       exSel,
       el('div', { class: 'row' }, slotSeg, metricSeg),

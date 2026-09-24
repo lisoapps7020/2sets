@@ -17,9 +17,9 @@ export function stepper(value, step, onSet, unit = '', big = false) {
 
 const MODES = [['weight', 'Lastre'], ['bodyweight', 'PC'], ['band', 'Banda']];
 
-export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDone = () => {}, label = '', hint = '', showDone = true }) {
+export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDone = () => {}, onRest = null, label = '', hint = '', showDone = true }) {
   const row = el('div', { class: 'setrow' + (set.done && showDone ? ' done' : '') });
-  const rerender = () => row.replaceWith(setRow({ set, bands, last, onChange, onDone, label, hint, showDone }));
+  const rerender = () => row.replaceWith(setRow({ set, bands, last, onChange, onDone, onRest, label, hint, showDone }));
   const bandList = Object.values(bands);
   if (set.load.mode === 'band') {
     const resolved = resolveBandId(set.load.bandId, bands);
@@ -55,16 +55,19 @@ export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDo
   }
 
   const reps = stepper(set.reps, 1, (v) => { set.reps = Math.round(v); onChange(); }, 'reps', true);
+  // Guardar: deja la serie registrada con las reps cargadas. Descanso: abre el timer del bloque, independiente de guardar.
   const doneBtn = el('button', {
     type: 'button',
     class: 'btn ' + (set.done ? 'btn-ghost' : 'btn-primary'),
+    dataset: { save: '' },
     onclick: () => {
       set.done = !set.done;
       onChange();
       rerender();
       if (set.done) onDone();
     },
-  }, set.done ? 'Hecho ✓' : 'Listo');
+  }, set.done ? 'Guardado ✓' : 'Guardar');
+  const restBtn = onRest ? el('button', { type: 'button', class: 'btn btn-ghost btn-rest', dataset: { rest: '' }, onclick: () => onRest() }, '⏱ Descanso') : null;
 
   row.append(
     el('div', { class: 'setrow-head' },
@@ -76,6 +79,7 @@ export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDo
     el('div', { class: 'setrow-body' },
       el('div', { class: 'setrow-load' }, load),
       el('div', { class: 'setrow-act' }, reps, showDone ? doneBtn : null),
+      showDone && restBtn ? el('div', { class: 'setrow-rest' }, restBtn) : null,
     ),
   );
   return row;

@@ -160,7 +160,7 @@ function workout() {
   const approach = blockCard('approach', restChip(restApproach()),
     ...b.approach.sets.map((set, i) => setRow({
       set, bands, label: `Aprox ${i + 1} · 5 reps`, onChange: persist,
-      onDone: () => startRest(restApproach(), { label: `Aproximación ${i + 1} hecha` }),
+      onRest: () => startRest(restApproach(), { label: `Aproximación ${i + 1} hecha` }),
     })),
   );
 
@@ -171,7 +171,7 @@ function workout() {
       label: `Serie ${i + 1} · ${i === 0 ? `${r1[0]} a ${r1[1]}` : `${r2[0]} a ${r2[1]}`} reps`,
       hint: i === 0 ? `Entre ${r1[0]} y ${r1[1]} repeticiones. Con ${r1[1]} o más, la próxima subís peso.` : `Entre ${r2[0]} y ${r2[1]} repeticiones. Con ${r2[1]} o más, la próxima subís peso.`,
       last: lastText(lastMain, i), onChange: persist,
-      onDone: () => startRest(restMain(), { label: `Serie ${i + 1} hecha` }),
+      onRest: () => startRest(restMain(), { label: `Serie ${i + 1} hecha` }),
     })),
   );
 
@@ -179,7 +179,7 @@ function workout() {
     el('p', { class: 'muted small' }, `${EXERCISES[secondEx].name}. ${lo} a ${hi} reps al fallo. Descanso con alarma entre series.`),
     ...b.second.sets.map((set, i) => setRow({
       set, bands, label: `Serie ${i + 1} · ${lo} a ${hi} reps`, hint: `Entre ${lo} y ${hi} repeticiones al fallo. Con ${hi} o más en las dos series, subís carga.`, last: lastText(lastSecond, i), onChange: persist,
-      onDone: () => startRest(restSecond(), { label: `${EXERCISES[secondEx].short} ${i + 1} hecha` }),
+      onRest: () => startRest(restSecond(), { label: `${EXERCISES[secondEx].short} ${i + 1} hecha` }),
     })),
   );
 
@@ -195,7 +195,7 @@ function workout() {
         ),
         ...item.sets.map((set, i) => setRow({
           set, bands, label: `Serie ${i + 1}`, onChange: persist,
-          onDone: () => startRest(restExtra(), { label: `${name} ${i + 1} hecha` }),
+          onRest: () => startRest(restExtra(), { label: `${name} ${i + 1} hecha` }),
         })),
         el('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => { item.sets.push(makeSet(item.sets[item.sets.length - 1]?.load)); persist(); drawExtras(); } }, '+ serie'),
       );

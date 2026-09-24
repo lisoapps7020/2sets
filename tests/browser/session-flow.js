@@ -41,7 +41,10 @@ $$('[data-block=approach] .setrow')[0].querySelectorAll('.seg-btn')[2].click();
 await sleep(60);
 const ap1 = $$('[data-block=approach] .setrow')[0];
 res.bandOptions = ap1.querySelectorAll('select option').length;
-ap1.querySelector('.setrow-body .btn').click();
+ap1.querySelector('[data-save]').click();
+await sleep(60);
+res.approxSavedNoOverlay = $('#rest-overlay').hidden === true;
+$$('[data-block=approach] .setrow')[0].querySelector('[data-rest]').click();
 await sleep(120);
 res.overlayAfterApprox = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent, label: $('#rest-label').textContent };
 $('#rest-skip').click();
@@ -52,18 +55,19 @@ await sleep(60);
 let m1 = $$('[data-block=main] .setrow')[0];
 setInput(m1.querySelector('.setrow-load input'), 10);
 setInput(m1.querySelector('.stepper-big input'), 8);
-m1.querySelector('.setrow-body .btn').click();
+m1.querySelector('[data-save]').click();
+await sleep(60);
+$$('[data-block=main] .setrow')[0].querySelector('[data-rest]').click();
 await sleep(120);
 res.overlayAfterMain = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent, label: $('#rest-label').textContent };
 $('#rest-skip').click();
-res.m1DoneText = $$('[data-block=main] .setrow')[0].querySelector('.setrow-body .btn').textContent;
+res.m1DoneText = $$('[data-block=main] .setrow')[0].querySelector('[data-save]').textContent;
 
 // Serie 2 principal: PC × 12
 const m2 = $$('[data-block=main] .setrow')[1];
 setInput(m2.querySelector('.stepper-big input'), 12);
-m2.querySelector('.setrow-body .btn').click();
-await sleep(120);
-$('#rest-skip').click();
+m2.querySelector('[data-save]').click();
+await sleep(60);
 
 // Secundus: 15 y 15 a PC, con su propio descanso (4 min por defecto) y alarma
 res.restChips = $$('[data-block] .chip-rest').map((c) => `${c.closest('[data-block]').dataset.block}:${c.dataset.rest}`);
@@ -71,7 +75,9 @@ res.blockColors = $$('[data-block]').map((b) => `${b.dataset.block}:${getCompute
 let firstSecond = true;
 for (const row of $$('[data-block=second] .setrow')) {
   setInput(row.querySelector('.stepper-big input'), 15);
-  row.querySelector('.setrow-body .btn').click();
+  row.querySelector('[data-save]').click();
+  await sleep(60);
+  row.querySelector('[data-rest]').click();
   await sleep(120);
   if (firstSecond) { res.overlayAfterSecond = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent, label: $('#rest-label').textContent }; firstSecond = false; }
   $('#rest-skip').click();
@@ -86,7 +92,9 @@ await sleep(80);
 $('[data-block=extra] .extra-item .btn-sm').click();
 await sleep(80);
 res.extraRows = $$('[data-block=extra] .setrow').length;
-$$('[data-block=extra] .setrow')[0].querySelector('.setrow-body .btn').click();
+$$('[data-block=extra] .setrow')[0].querySelector('[data-save]').click();
+await sleep(60);
+$$('[data-block=extra] .setrow')[0].querySelector('[data-rest]').click();
 await sleep(120);
 res.overlayAfterExtra = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent };
 $('#rest-skip').click();

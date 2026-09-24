@@ -160,6 +160,8 @@ a { color: inherit; }
 .setrow-load { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
 .setrow-act { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); flex-wrap: wrap; }
 .setrow-act .btn { flex: 1 1 96px; }
+.setrow-rest { display: flex; }
+.btn-rest { border-color: var(--block, var(--border)); color: var(--block, var(--ink)); min-height: 40px; font-size: 14px; }
 .card-pr { border: 2px solid var(--gold); }
 .notes { width: 100%; min-height: 72px; border: 1px solid var(--border); border-radius: var(--r); padding: var(--s3); background: var(--surface); resize: vertical; font: inherit; color: inherit; }
 

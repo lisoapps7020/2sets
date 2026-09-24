@@ -2,8 +2,11 @@
 import { EXTRA_SEEDS, BAND_SEEDS, uid } from './templates.js';
 
 const DB_NAME = 'twosets';
-const DB_VERSION = 1;
-export const STORES = ['settings', 'bodyweight', 'bands', 'extras', 'sessions'];
+export const DB_VERSION = 2;
+export const SCHEMA_VERSION = 2;
+export const STORES = ['settings', 'bodyweight', 'bands', 'extras', 'sessions', 'measurements'];
+
+export const DEFAULT_GOAL = { direction: 'mantener', targetWeightKg: null, targetBodyFatPct: null, setAt: null, startWeightKg: null };
 
 export const DEFAULT_PROFILE = {
   name: '',
@@ -12,7 +15,10 @@ export const DEFAULT_PROFILE = {
   restMainSec: 300,
   restApproachSec: 180,
   theme: 'auto',
-  schemaVersion: 1,
+  sex: 'm',
+  heightCm: null,
+  goal: { ...DEFAULT_GOAL },
+  schemaVersion: SCHEMA_VERSION,
 };
 
 let dbp = null;
@@ -29,6 +35,9 @@ export function open() {
       }
       if (!db.objectStoreNames.contains('sessions')) {
         db.createObjectStore('sessions', { keyPath: 'id' }).createIndex('date', 'date');
+      }
+      if (!db.objectStoreNames.contains('measurements')) {
+        db.createObjectStore('measurements', { keyPath: 'id' }).createIndex('date', 'date');
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -57,7 +66,12 @@ export const clear = (store) => tx(store, 'readwrite', (st) => st.clear());
 export async function getProfile() {
   const row = await get('settings', 'profile');
   const v = row?.value || {};
-  return { ...DEFAULT_PROFILE, ...v, incrementKg: { ...DEFAULT_PROFILE.incrementKg, ...(v.incrementKg || {}) } };
+  return {
+    ...DEFAULT_PROFILE,
+    ...v,
+    incrementKg: { ...DEFAULT_PROFILE.incrementKg, ...(v.incrementKg || {}) },
+    goal: { ...DEFAULT_GOAL, ...(v.goal || {}) },
+  };
 }
 
 export const saveProfile = (p) => put('settings', { key: 'profile', value: p });
@@ -94,6 +108,14 @@ export async function listExtras() {
   return (await getAll('extras')).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function listMeasurements() {
+  return (await getAll('measurements')).sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function latestMeasurement() {
+  return (await listMeasurements())[0] || null;
+}
+
 export async function ensureSeeds() {
   const seeded = await get('settings', 'seeded');
   if (seeded) return;
@@ -103,22 +125,23 @@ export async function ensureSeeds() {
 }
 
 export async function exportAll() {
-  const [settings, bodyweight, bands, extras, sessions] = await Promise.all(STORES.map(getAll));
-  return { app: '2sets', schemaVersion: 1, exportedAt: new Date().toISOString(), settings, bodyweight, bands, extras, sessions };
+  const [settings, bodyweight, bands, extras, sessions, measurements] = await Promise.all(STORES.map(getAll));
+  return { app: '2sets', schemaVersion: SCHEMA_VERSION, exportedAt: new Date().toISOString(), settings, bodyweight, bands, extras, sessions, measurements };
 }
 
 export function validateExport(d) {
   if (!d || typeof d !== 'object' || d.app !== '2sets') return { ok: false, error: 'El archivo no es un backup de 2 Sets.' };
   if (!Number.isInteger(d.schemaVersion) || d.schemaVersion < 1) return { ok: false, error: 'El backup no tiene una versión válida.' };
-  if (d.schemaVersion > 1) return { ok: false, error: 'El backup es de una versión más nueva de la app.' };
+  if (d.schemaVersion > SCHEMA_VERSION) return { ok: false, error: 'El backup es de una versión más nueva de la app.' };
   for (const s of STORES) {
     if (d[s] !== undefined && !Array.isArray(d[s])) return { ok: false, error: `Sección inválida en el backup: ${s}.` };
   }
   return { ok: true };
 }
 
+// Lleva cualquier backup válido al esquema actual. v1 → v2: agrega mediciones vacías.
 export function migrate(d) {
-  const out = { ...d, schemaVersion: 1 };
+  const out = { ...d, schemaVersion: SCHEMA_VERSION };
   for (const s of STORES) out[s] = Array.isArray(d[s]) ? d[s] : [];
   return out;
 }

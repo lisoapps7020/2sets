@@ -41,6 +41,12 @@ try {
   await db.importAll({ app: '2sets', schemaVersion: 1, settings: [], bodyweight: [], bands: [], extras: [], sessions: [] });
   await db.ensureSeeds();
   res.noReseedAfterImport = (await db.getAll('bands')).length === 0 && (await db.getAll('extras')).length === 0;
+  // Backup v1 (sin mediciones) importa en la base v2 y deja la tabla vacía
+  await db.importAll({ app: '2sets', schemaVersion: 1, settings: [], bodyweight: [], bands: [], extras: [], sessions: [{ id: 'ses_v1', date: '2026-01-05', day: 'push', status: 'done', blocks: { main: { exerciseId: 'dips', sets: [] }, second: { exerciseId: 'decline_pushups', sets: [] }, extra: [] } }] });
+  res.v1ImportOk = (await db.listMeasurements()).length === 0 && (await db.listSessions()).length === 1;
+  await db.put('measurements', { id: 'mea_1', date: '2026-09-01', source: 'balanza', waistCm: null, neckCm: null, hipCm: null, bodyFatPct: 18 });
+  res.latestMeasurement = (await db.latestMeasurement())?.bodyFatPct;
+  res.exportHasMeasurements = Array.isArray((await db.exportAll()).measurements) && (await db.exportAll()).schemaVersion === 2;
   res.ok = true;
 } catch (e) {
   res.ok = false; res.error = String(e && e.stack || e);

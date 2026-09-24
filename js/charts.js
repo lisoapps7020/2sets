@@ -12,7 +12,9 @@ export function lineChart(points, { width = 320, height = 160, unit = '' } = {})
   const values = pts.map((p) => Number(p.value));
   let min = Math.min(...values);
   let max = Math.max(...values);
-  if (min === max) { min -= 1; max += 1; }
+  const dataMax = max;
+  const flat = min === max;
+  if (flat) { min -= 1; max += 1; }
   const innerW = w - padX * 2;
   const innerH = h - padTop - padBottom;
   const x = (i) => (pts.length === 1 ? w / 2 : padX + (i * innerW) / (pts.length - 1));
@@ -36,7 +38,7 @@ export function lineChart(points, { width = 320, height = 160, unit = '' } = {})
   parts.push(`<text x="${lx.toFixed(1)}" y="${Math.max(12, lastXY[1] - 10).toFixed(1)}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="var(--ink)">${label(last.value)}</text>`);
   parts.push(`<text x="${padX}" y="${h - 8}" font-size="11" fill="var(--ink-muted)">${fmtShortDate(first.date)}</text>`);
   if (pts.length > 1) parts.push(`<text x="${w - padX}" y="${h - 8}" text-anchor="end" font-size="11" fill="var(--ink-muted)">${fmtShortDate(last.date)}</text>`);
-  parts.push(`<text x="${w - padX}" y="${y(max) - 4}" text-anchor="end" font-size="10" fill="var(--ink-muted)">${label(max)}</text>`);
+  if (!flat) parts.push(`<text x="${w - padX}" y="${y(dataMax) - 4}" text-anchor="end" font-size="10" fill="var(--ink-muted)">${label(dataMax)}</text>`);
   parts.push('</svg>');
   return parts.join('');
 }

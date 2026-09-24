@@ -52,7 +52,8 @@ export function radarChart(values, { size = 300 } = {}) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s} ${s}" role="img" aria-label="Sin datos"><text x="${s / 2}" y="${s / 2}" text-anchor="middle" font-size="14" fill="var(--ink-muted)">Sin datos todavía</text></svg>`;
   }
   const n = items.length;
-  const cx = s / 2, cy = s / 2;
+  const w = s + 120; // margen lateral para que las etiquetas largas no se corten
+  const cx = w / 2, cy = s / 2;
   const r = s / 2 - 34; // hueco para las etiquetas
   const f = (v) => v.toFixed(1);
   const angle = (i) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
@@ -68,7 +69,7 @@ export function radarChart(values, { size = 300 } = {}) {
   });
   const coords = vals.map((v, i) => pt(i, (r * Math.min(100, Math.max(0, v ?? 0))) / 100));
   const parts = [];
-  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s} ${s}" role="img" aria-label="Atributos">`);
+  parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${s}" role="img" aria-label="Atributos">`);
   for (const pct of [25, 50, 75, 100]) {
     parts.push(`<polygon fill="none" stroke="var(--border)" stroke-width="${pct === 100 ? 1.5 : 1}" points="${ring((r * pct) / 100)}"/>`);
   }

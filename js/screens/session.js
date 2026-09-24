@@ -1,4 +1,4 @@
-import { el, fmtDate, todayISO, loadText, toast, confirmDialog, debounce, prText, fmtNum } from '../ui.js';
+import { el, fmtDate, todayISO, loadText, toast, confirmDialog, debounce, prText, fmtNum, mount } from '../ui.js';
 import { getProfile, listSessions, activeSession, latestBodyweight, bandsById, listExtras, ensureSeeds, saveSession, deleteSession } from '../db.js';
 import { nextDay, suggestMain, suggestSecond, MAIN_BY_DAY, SECOND_BY_DAY, EXERCISES, computePRs, detectNewPRs, makeSet, needsBodyweightPrompt } from '../model.js';
 import { newSession, BLOCK_META, WARMUP_ITEMS, sessionDuration, uid } from '../templates.js';
@@ -220,7 +220,7 @@ function workout() {
     el('button', { type: 'button', class: 'btn btn-primary btn-wide', onclick: finish }, 'Terminar sesión'),
   );
 
-  c.replaceChildren(header, bodyweightPrompt(), warmup, approach, main, second, extra, notes, footer);
+  mount(c, header, bodyweightPrompt(), warmup, approach, main, second, extra, notes, footer);
 }
 
 async function discard() {

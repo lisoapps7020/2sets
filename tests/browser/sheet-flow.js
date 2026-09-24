@@ -32,6 +32,8 @@ await db.importAll({ app: '2sets', schemaVersion: 2, bodyweight: [{ id: 'bw_1', 
 location.hash = '#/progreso';
 await sleep(1000);
 res.sections = $$('[data-sheet]').map((x) => x.dataset.sheet);
+res.noNullText = ![...$('#screen').childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() === 'null');
+res.radarClipped = (() => { const svg = $('[data-sheet=radar] svg'); const vb = svg.viewBox.baseVal; return [...svg.querySelectorAll('text')].some((t) => { const b = t.getBBox(); return b.x < vb.x || b.x + b.width > vb.x + vb.width; }); })();
 res.level = Number($('[data-level]')?.textContent);
 res.ficha = $('[data-sheet=ficha]')?.innerText.replace(/\s+/g, ' ').trim();
 res.radarPolygon = !!$('[data-sheet=radar] polygon[fill="var(--primary)"]');

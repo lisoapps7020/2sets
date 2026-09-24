@@ -102,8 +102,8 @@ test('radarChart null value mutes its label, hides the number and keeps 6 polygo
 });
 
 test('radarChart viewBox respects size and defaults to 300', () => {
-  assert.match(radarChart(SIX, { size: 240 }), /viewBox="0 0 240 240"/);
-  assert.match(radarChart(SIX), /viewBox="0 0 300 300"/);
+  assert.match(radarChart(SIX, { size: 240 }), /viewBox="0 0 360 240"/);
+  assert.match(radarChart(SIX), /viewBox="0 0 420 300"/);
 });
 
 test('radarChart with fewer than 3 items shows the empty message', () => {
@@ -128,12 +128,12 @@ test('radarChart never emits NaN for a mix of null and numbers, from 3 to 8 item
 });
 
 test('radarChart starts at the top and goes clockwise, rounding to 1 decimal', () => {
-  // size 300 -> center 150, radius 300/2 - 34 = 116
+  // size 300 -> ancho 420 (60 px de margen por lado para etiquetas), centro x 210, radio 300/2 - 34 = 116
   const svg = radarChart(SIX.map((d, i) => ({ ...d, value: i < 2 ? 100 : 0 })));
   const dots = tagsOf(svg, 'circle');
-  assert.match(dots[0], /cx="150\.0"/);
+  assert.match(dots[0], /cx="210\.0"/);
   assert.match(dots[0], /cy="34\.0"/);
-  assert.match(dots[1], /cx="250\.5"/);
+  assert.match(dots[1], /cx="310\.5"/);
   assert.match(dots[1], /cy="92\.0"/);
 });
 

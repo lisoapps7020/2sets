@@ -1,4 +1,4 @@
-import { el, fmtDate, fmtMonth, loadText, toast, confirmDialog, fmtNum } from '../ui.js';
+import { el, fmtDate, fmtMonth, loadText, toast, confirmDialog, fmtNum, mount } from '../ui.js';
 import { listSessions, saveSession, deleteSession, bandsById } from '../db.js';
 import { EXERCISES } from '../model.js';
 import { BLOCK_META, WARMUP_ITEMS, sessionDuration } from '../templates.js';
@@ -84,7 +84,7 @@ function detail(s, editing) {
       } }, 'Eliminar'),
     );
 
-  c.replaceChildren(
+  mount(c,
     el('div', { class: 'row-between' },
       el('button', { type: 'button', class: 'link', onclick: () => navigate('#/historial') }, '← Historial'),
       el('span', { class: 'muted small' }, dur !== null ? `${dur} min` : ''),

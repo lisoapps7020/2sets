@@ -1,4 +1,4 @@
-import { el, fmtKg, fmtNum, fmtShortDate, fmtDate, todayISO } from '../ui.js';
+import { el, fmtKg, fmtNum, fmtShortDate, fmtDate, todayISO, mount } from '../ui.js';
 import { listSessions, bandsById, getAll, getProfile, listMeasurements } from '../db.js';
 import { EXERCISES, computePRs, milestones, seriesFor } from '../model.js';
 import { lineChart, radarChart } from '../charts.js';
@@ -202,7 +202,7 @@ function draw() {
       el('button', { type: 'button', class: 'btn btn-sm', onclick: openMeasure }, 'Registrar medidas'))
     : null;
 
-  c.replaceChildren(
+  mount(c,
     el('h1', {}, 'Progreso'),
     fichaCard(),
     radarCard(),

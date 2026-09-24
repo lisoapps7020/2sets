@@ -1,5 +1,5 @@
-import { el, fmtKg, fmtNum, fmtShortDate, fmtDate, todayISO, mount } from '../ui.js';
-import { listSessions, bandsById, getAll, getProfile, listMeasurements } from '../db.js';
+import { el, fmtKg, fmtNum, fmtShortDate, fmtDate, todayISO, mount, toast } from '../ui.js';
+import { listSessions, bandsById, getAll, getProfile, listMeasurements, saveProfile } from '../db.js';
 import { EXERCISES, computePRs, milestones, seriesFor } from '../model.js';
 import { lineChart, radarChart } from '../charts.js';
 import { backfillForm } from '../backfill.js';
@@ -24,6 +24,108 @@ let opts = {};
 let profile = null;
 let sheet = null;
 let measurements = [];
+let avatarApi = null;
+let avatarObserver = null;
+
+function releaseAvatar() {
+  try { avatarObserver?.disconnect(); } catch {}
+  avatarObserver = null;
+  try { avatarApi?.dispose(); } catch {}
+  avatarApi = null;
+}
+
+export function destroy() {
+  releaseAvatar();
+}
+
+const TINTS = [['blanco', 'Blanco'], ['crema', 'Crema'], ['gris', 'Gris']];
+const HAIRS = [['none', 'Sin pelo'], ['short', 'Corto'], ['long', 'Largo'], ['bun', 'Rodete']];
+const BEARDS = [['none', 'Sin barba'], ['short', 'Corta'], ['full', 'Completa']];
+
+// Tarjeta del personaje: carga los módulos 3D solo acá, para no frenar el arranque de la app.
+function avatarCard() {
+  releaseAvatar();
+  const canvas = el('canvas', { class: 'avatar-canvas', width: 320, height: 380, 'aria-label': 'Tu personaje en 3D' });
+  const status = el('p', { class: 'muted small', dataset: { avatarStatus: '' } }, 'Cargando la figura…');
+  const panelHost = el('div');
+  const unlocksHost = el('div', { class: 'list' });
+  const lv = sheet.level;
+  const card = el('section', { class: 'card card-dark', dataset: { sheet: 'avatar' } },
+    el('div', { class: 'card-head' }, el('h2', { class: 'card-title' }, 'Tu personaje'), el('span', { class: 'label-caps' }, `Nivel ${lv.level} · ${lv.title}`)),
+    el('div', { class: 'avatar-wrap' }, canvas),
+    status,
+    el('p', { class: 'muted small' }, 'Girá la estatua con el dedo. Crece con tus atributos y se adorna con tu nivel.'),
+    el('div', { class: 'btn-row' }, el('button', { type: 'button', class: 'btn btn-ghost btn-dark btn-sm', onclick: () => togglePanel() }, 'Personalizar')),
+    panelHost,
+    el('p', { class: 'label-caps', style: { marginTop: '8px' } }, 'Desbloqueos'),
+    unlocksHost,
+  );
+
+  let mods = null;
+  let params = null;
+  const currentParams = () => mods.avatarParams(sheet, profile);
+  const drawUnlocks = () => {
+    const u = params?.unlocks || {};
+    unlocksHost.replaceChildren(...mods.UNLOCKS.map((it) => {
+      const on = !!u[it.key];
+      return el('div', { class: 'list-item', dataset: { unlock: it.key, state: on ? 'on' : 'off' } },
+        el('span', { class: on ? '' : 'muted' }, it.name),
+        el('span', { class: 'chip ' + (on ? 'chip-gold' : ''), style: on ? {} : { opacity: 0.6 } }, on ? 'Listo' : `Nivel ${it.level}`),
+      );
+    }));
+  };
+  const seg = (key, options) => el('div', { class: 'seg', dataset: { avatar: key } }, ...options.map(([k, l]) => el('button', {
+    type: 'button', class: 'seg-btn' + (profile.avatar[key] === k ? ' on' : ''),
+    onclick: async () => {
+      if (profile.avatar[key] === k) return;
+      profile.avatar[key] = k;
+      try { await saveProfile(profile); } catch { toast('No se pudo guardar', 'error'); }
+      params = currentParams();
+      avatarApi?.update(params);
+      drawPanel();
+    },
+  }, l)));
+  const drawPanel = () => {
+    if (!panelHost.dataset.open) return;
+    panelHost.replaceChildren(
+      el('div', { class: 'field' }, el('label', {}, 'Mármol'), seg('tint', TINTS)),
+      el('div', { class: 'field' }, el('label', {}, 'Pelo'), seg('hair', HAIRS)),
+      el('div', { class: 'field' }, el('label', {}, 'Barba'), seg('beard', BEARDS)),
+    );
+  };
+  const togglePanel = () => {
+    if (panelHost.dataset.open) { delete panelHost.dataset.open; panelHost.replaceChildren(); return; }
+    panelHost.dataset.open = '1';
+    drawPanel();
+  };
+
+  (async () => {
+    try {
+      const [p, s] = await Promise.all([import('../avatar/params.js'), import('../avatar/scene.js')]);
+      mods = { avatarParams: p.avatarParams, UNLOCKS: p.UNLOCKS, createAvatar: s.createAvatar };
+    } catch {
+      status.textContent = 'La figura necesita conexión la primera vez. Volvé a abrir Progreso con internet.';
+      return;
+    }
+    params = currentParams();
+    drawUnlocks();
+    if (!card.isConnected) return;
+    const api = await mods.createAvatar(canvas, params);
+    if (!api) { status.textContent = 'Tu navegador no puede mostrar la figura 3D.'; return; }
+    if (!card.isConnected) { api.dispose(); return; }
+    avatarApi = api;
+    card.__avatar = api;
+    status.remove();
+    if ('IntersectionObserver' in window) {
+      avatarObserver = new IntersectionObserver((entries) => { for (const e of entries) api.setVisible(e.isIntersecting); }, { threshold: 0.1 });
+      avatarObserver.observe(card);
+    } else {
+      api.setVisible(true);
+    }
+  })();
+
+  return card;
+}
 
 function loadSel() {
   try {
@@ -212,6 +314,7 @@ function draw() {
 
   mount(c,
     el('h1', {}, 'Progreso'),
+    avatarCard(),
     fichaCard(),
     radarCard(),
     reminder,

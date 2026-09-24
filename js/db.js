@@ -7,6 +7,7 @@ export const SCHEMA_VERSION = 2;
 export const STORES = ['settings', 'bodyweight', 'bands', 'extras', 'sessions', 'measurements'];
 
 export const DEFAULT_GOAL = { direction: 'mantener', targetWeightKg: null, targetBodyFatPct: null, setAt: null, startWeightKg: null };
+export const DEFAULT_AVATAR = { tint: 'blanco', hair: 'short', beard: 'none' };
 
 export const DEFAULT_PROFILE = {
   name: '',
@@ -18,6 +19,7 @@ export const DEFAULT_PROFILE = {
   sex: 'm',
   heightCm: null,
   goal: { ...DEFAULT_GOAL },
+  avatar: { ...DEFAULT_AVATAR },
   schemaVersion: SCHEMA_VERSION,
 };
 
@@ -76,6 +78,7 @@ export async function getProfile() {
     ...v,
     incrementKg: { ...DEFAULT_PROFILE.incrementKg, ...(v.incrementKg || {}) },
     goal: { ...DEFAULT_GOAL, ...(v.goal || {}) },
+    avatar: { ...DEFAULT_AVATAR, ...(v.avatar || {}) },
   };
 }
 

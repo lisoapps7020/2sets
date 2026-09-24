@@ -187,6 +187,10 @@ a { color: inherit; }
 .chart svg { width: 100%; height: auto; display: block; }
 .radar svg { max-width: 340px; margin: 0 auto; }
 
+/* Personaje 3D */
+.avatar-wrap { display: flex; justify-content: center; }
+.avatar-canvas { width: 100%; max-width: 340px; height: 380px; display: block; touch-action: pan-y; border-radius: var(--r); background: radial-gradient(ellipse at 50% 70%, rgba(196, 169, 140, 0.12), transparent 65%); }
+
 /* Ficha */
 .xpbar { height: 12px; background: rgba(237, 230, 222, 0.15); border-radius: var(--r-pill); overflow: hidden; }
 .xpbar > i { display: block; height: 100%; background: var(--gold); border-radius: var(--r-pill); }

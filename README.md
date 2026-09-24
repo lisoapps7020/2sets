@@ -11,6 +11,7 @@ App web instalable (PWA) para registrar sesiones de calistenia con lastre siguie
 - Historial editable, gráficos de lastre, carga total, 1RM estimado y reps, PRs e hitos.
 - Carga de sesiones pasadas desde Progreso, para pasar lo anotado en papel y ver la curva desde el día 1. Quedan marcadas como "papel" en el Historial.
 - Ficha de personaje en Progreso: nivel y experiencia con títulos romanos, radar de seis atributos (Tirón, Empuje, Base, Constancia, Volumen, Cuerpo), fuerza relativa con escalones de Novato a Élite y kilos que faltan para el siguiente, tendencia y alerta de estancamiento con acción sugerida, constancia de las últimas 8 semanas.
+- Personaje 3D: una estatua de mármol rotable arriba de Progreso, cuyas proporciones salen de los atributos (espalda y brazos por Tirón, pecho y hombros por Empuje, cintura por la grasa estimada, aura por Constancia) y que se adorna por nivel: cinturón, laurel, pedestal, dorado y capa. Personalizable en tono de mármol, pelo y barba. Usa Three.js desde CDN, cargado solo al abrir Progreso y cacheado para offline.
 - Cuerpo: sexo, altura y objetivo (bajar, mantener, subir) en Ajustes; mediciones con cinta métrica (grasa estimada con la fórmula de la Marina de EE. UU.) o con balanza de bioimpedancia; peso promedio semanal, cambios a 30 días y masa magra estimada.
 - Notas por sesión, y pedido del peso corporal al arrancar si hace más de una semana que no lo cargás.
 - Export e import de backup en JSON.
@@ -80,6 +81,8 @@ js/body.js            grasa corporal, masa magra, tendencias de peso (puro, test
 js/stats.js           fuerza relativa, escalones, tendencia, estancamiento, constancia, XP y nivel (puro, testeado)
 js/sheet.js           arma la ficha de personaje
 js/measure.js         formulario de mediciones
+js/avatar/params.js   proporciones de la estatua desde la ficha (puro, testeado)
+js/avatar/scene.js    escena Three.js procedural de la estatua
 js/screens/           inicio, entrenar, historial, progreso, ajustes
 tests/                node --test y flujos de browser
 tools/                headless.mjs y make_icons.py

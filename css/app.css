@@ -121,8 +121,8 @@ a { color: inherit; }
   background: var(--surface); font-weight: 800; font-size: 18px; -moz-appearance: textfield;
 }
 .stepper input::-webkit-inner-spin-button, .stepper input::-webkit-outer-spin-button { -webkit-appearance: none; }
-.stepper-big input { width: 88px; font-size: 28px; height: 56px; }
-.stepper-big button { width: 56px; height: 56px; }
+.stepper-big input { width: 72px; font-size: 26px; }
+.stepper-big button { font-size: 24px; }
 .stepper-unit { font-size: 13px; color: var(--ink-muted); font-weight: 700; margin-left: 4px; }
 
 /* Forms */
@@ -145,8 +145,8 @@ a { color: inherit; }
 .setrow-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); }
 .setrow-body { display: flex; flex-direction: column; gap: var(--s2); }
 .setrow-load { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
-.setrow-act { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
-.setrow-act .btn { flex: 1; min-width: 96px; }
+.setrow-act { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); flex-wrap: wrap; }
+.setrow-act .btn { flex: 1 1 96px; }
 .card-pr { border: 2px solid var(--gold); }
 .notes { width: 100%; min-height: 72px; border: 1px solid var(--border); border-radius: var(--r); padding: var(--s3); background: var(--surface); resize: vertical; font: inherit; color: inherit; }
 

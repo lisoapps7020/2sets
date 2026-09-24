@@ -2,7 +2,12 @@
 // createAvatar(canvas, params) → Promise<{ update, setVisible, dispose, debug } | null>.
 // Devuelve null si no hay WebGL o si la librería no se pudo cargar; nunca lanza.
 
-export const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+export const THREE_URL = 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js';
+
+// Descarga (o toma de cache) la librería sin crear nada. Rechaza si no hay conexión y no está cacheada.
+export function preloadThree() {
+  return loadThree();
+}
 
 const TINTS = { blanco: 0xEDE6DE, crema: 0xE6D8C3, gris: 0xB8B0A6 };
 const GOLD = 0xC9A55A;

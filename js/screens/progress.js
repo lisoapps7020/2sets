@@ -7,6 +7,8 @@ import { measureForm } from '../measure.js';
 import { characterSheet } from '../sheet.js';
 import { needsMeasurementPrompt } from '../body.js';
 import { xpForLevel } from '../stats.js';
+import { avatarParams, UNLOCKS } from '../avatar/params.js';
+import { createAvatar, preloadThree } from '../avatar/scene.js';
 
 const METRICS = [
   ['added', 'Lastre', 'kg'],
@@ -26,6 +28,7 @@ let sheet = null;
 let measurements = [];
 let avatarApi = null;
 let avatarObserver = null;
+let avatarCardEl = null; // se construye una vez por render() y se reutiliza en cada draw()
 
 function releaseAvatar() {
   try { avatarObserver?.disconnect(); } catch {}
@@ -42,10 +45,10 @@ const TINTS = [['blanco', 'Blanco'], ['crema', 'Crema'], ['gris', 'Gris']];
 const HAIRS = [['none', 'Sin pelo'], ['short', 'Corto'], ['long', 'Largo'], ['bun', 'Rodete']];
 const BEARDS = [['none', 'Sin barba'], ['short', 'Corta'], ['full', 'Completa']];
 
-// Tarjeta del personaje: carga los módulos 3D solo acá, para no frenar el arranque de la app.
+// Tarjeta del personaje. Three.js se descarga recién acá (dentro de scene.js), no en el arranque de la app.
 function avatarCard() {
   releaseAvatar();
-  const canvas = el('canvas', { class: 'avatar-canvas', width: 320, height: 380, 'aria-label': 'Tu personaje en 3D' });
+  const canvas = el('canvas', { class: 'avatar-canvas', width: 320, height: 380, role: 'img', 'aria-label': 'Tu personaje en 3D' });
   const status = el('p', { class: 'muted small', dataset: { avatarStatus: '' } }, 'Cargando la figura…');
   const panelHost = el('div');
   const unlocksHost = el('div', { class: 'list' });
@@ -61,12 +64,11 @@ function avatarCard() {
     unlocksHost,
   );
 
-  let mods = null;
-  let params = null;
-  const currentParams = () => mods.avatarParams(sheet, profile);
+  const currentParams = () => avatarParams(sheet, profile);
+  let params = currentParams();
   const drawUnlocks = () => {
     const u = params?.unlocks || {};
-    unlocksHost.replaceChildren(...mods.UNLOCKS.map((it) => {
+    unlocksHost.replaceChildren(...UNLOCKS.map((it) => {
       const on = !!u[it.key];
       return el('div', { class: 'list-item', dataset: { unlock: it.key, state: on ? 'on' : 'off' } },
         el('span', { class: on ? '' : 'muted' }, it.name),
@@ -99,18 +101,19 @@ function avatarCard() {
     drawPanel();
   };
 
+  drawUnlocks();
+
   (async () => {
+    // Primero la librería: si no baja (sin conexión la primera vez) el mensaje es ese, no "sin WebGL".
     try {
-      const [p, s] = await Promise.all([import('../avatar/params.js'), import('../avatar/scene.js')]);
-      mods = { avatarParams: p.avatarParams, UNLOCKS: p.UNLOCKS, createAvatar: s.createAvatar };
+      await preloadThree();
     } catch {
       status.textContent = 'La figura necesita conexión la primera vez. Volvé a abrir Progreso con internet.';
       return;
     }
-    params = currentParams();
-    drawUnlocks();
     if (!card.isConnected) return;
-    const api = await mods.createAvatar(canvas, params);
+    let api = null;
+    try { api = await createAvatar(canvas, params); } catch { api = null; }
     if (!api) { status.textContent = 'Tu navegador no puede mostrar la figura 3D.'; return; }
     if (!card.isConnected) { api.dispose(); return; }
     avatarApi = api;
@@ -118,7 +121,7 @@ function avatarCard() {
     status.remove();
     if ('IntersectionObserver' in window) {
       avatarObserver = new IntersectionObserver((entries) => { for (const e of entries) api.setVisible(e.isIntersecting); }, { threshold: 0.1 });
-      avatarObserver.observe(card);
+      avatarObserver.observe(canvas);
     } else {
       api.setVisible(true);
     }
@@ -154,6 +157,7 @@ export async function render(container) {
   };
   opts = { bandsById: bands, bodyweightFor: bwFor };
   sheet = characterSheet({ sessions: done, bodyweightRows: rows, measurements, profile, bandsById: bands, todayISO: todayISO() });
+  avatarCardEl = avatarCard();
   draw();
 }
 
@@ -314,7 +318,7 @@ function draw() {
 
   mount(c,
     el('h1', {}, 'Progreso'),
-    avatarCard(),
+    avatarCardEl,
     fichaCard(),
     radarCard(),
     reminder,

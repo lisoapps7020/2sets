@@ -80,6 +80,11 @@ res.avatarCanvas = !!$('[data-sheet=avatar] canvas');
 for (let i = 0; i < 20 && !$('[data-sheet=avatar]').__avatar && $('[data-avatar-status]'); i++) await sleep(500);
 res.avatarStatus = $('[data-avatar-status]')?.textContent ?? 'ok';
 res.avatarReady = !!$('[data-sheet=avatar]').__avatar;
+// Cambiar un selector del gráfico redibuja la pantalla pero no reconstruye la estatua
+const apiBefore = $('[data-sheet=avatar]').__avatar;
+$$('.seg-btn').find((b) => b.textContent === 'Total').click();
+await sleep(400);
+res.avatarKeptAcrossDraw = $('[data-sheet=avatar]').__avatar === apiBefore && !$('[data-avatar-status]') && !apiBefore.debug().disposed;
 $$('[data-sheet=avatar] .btn').find((b) => b.textContent === 'Personalizar').click();
 await sleep(200);
 $$('[data-avatar=hair] .seg-btn').find((b) => b.textContent === 'Largo').click();

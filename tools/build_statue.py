@@ -117,10 +117,11 @@ def add_relief(obj, thickness, noise_strength, noise_size, subdiv=1, smooth=1):
         sub = obj.modifiers.new('sub', 'SUBSURF')
         sub.levels = subdiv
         sub.render_levels = subdiv
-    dis = obj.modifiers.new('dis', 'DISPLACE')
-    dis.texture = tex
-    dis.strength = noise_strength
-    dis.mid_level = 0.5
+    if noise_strength > 0:
+        dis = obj.modifiers.new('dis', 'DISPLACE')
+        dis.texture = tex
+        dis.strength = noise_strength
+        dis.mid_level = 0.5
     if smooth:
         sm = obj.modifiers.new('sm', 'SMOOTH')
         sm.factor = 0.6
@@ -236,7 +237,11 @@ def keep_faces(obj, predicate, exclude_verts=()):
     mw = obj.matrix_world
     ex = set(exclude_verts)
     for poly in obj.data.polygons:
-        keep = predicate(mw @ poly.center) and not any(i in ex for i in poly.vertices)
+        try:
+            keep = predicate(mw @ poly.center, poly.normal)
+        except TypeError:
+            keep = predicate(mw @ poly.center)
+        keep = keep and not any(i in ex for i in poly.vertices)
         poly.select = not keep
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.delete(type='FACE')
@@ -256,7 +261,7 @@ def scalp_region(c):
 
 hair = plain_copy(body, 'hair_short')
 keep_faces(hair, scalp_region, ear_verts)
-add_relief(hair, thickness=0.02, noise_strength=0.010, noise_size=0.02, subdiv=1, smooth=1)
+add_relief(hair, thickness=0.02, noise_strength=0.0, noise_size=0.02, subdiv=1, smooth=2)
 log('hair_short verts', len(hair.data.vertices))
 
 # Pelo largo: la malla auxiliar de MakeHuman sin los mechones sobre la cara
@@ -291,14 +296,16 @@ mouth_z = eye_z - 0.078
 log('face refs', 'chin_z', round(chin_z, 3), 'mouth_z', round(mouth_z, 3))
 
 
-def beard_region(c, full):
+def beard_region(c, n=None, full=True):
     if (c - skull_c).length > skull_r + 0.03:
         return False
-    if c.y > eye_y + (0.075 if full else 0.05):   # solo la mitad delantera y los costados de la mandíbula
+    if n is not None and n.z < -0.35:               # no la cara inferior del mentón
         return False
-    if c.z > mouth_z - (0.006 if full else 0.014):  # debajo de la boca
+    if c.z < chin_z - 0.006:                        # no el cuello
         return False
-    if c.z < chin_z - 0.012:                        # no el cuello
+    if c.y > eye_y + (0.085 if full else 0.05):      # mitad delantera y costados de la mandíbula
+        return False
+    if c.z > mouth_z - 0.010:                       # debajo de la boca
         return False
     return True
 
@@ -306,11 +313,11 @@ def beard_region(c, full):
 beard_short = plain_copy(body, 'beard_short')
 for m in list(beard_short.modifiers):
     beard_short.modifiers.remove(m)
-keep_faces(beard_short, lambda c: beard_region(c, False))
-add_relief(beard_short, thickness=0.008, noise_strength=0.003, noise_size=0.015, subdiv=1, smooth=1)
+keep_faces(beard_short, lambda c, n: beard_region(c, n, False))
+add_relief(beard_short, thickness=0.007, noise_strength=0.0, noise_size=0.02, subdiv=1, smooth=2)
 beard_full = plain_copy(body, 'beard_full')
-keep_faces(beard_full, lambda c: beard_region(c, True))
-add_relief(beard_full, thickness=0.022, noise_strength=0.005, noise_size=0.018, subdiv=1, smooth=2)
+keep_faces(beard_full, lambda c, n: beard_region(c, n, True))
+add_relief(beard_full, thickness=0.02, noise_strength=0.0, noise_size=0.02, subdiv=1, smooth=3)
 log('beards verts', len(beard_short.data.vertices), len(beard_full.data.vertices))
 
 # ---------------------------------------------------------------- cuerpo: quitar auxiliares, suavizar

@@ -17,9 +17,9 @@ export function stepper(value, step, onSet, unit = '', big = false) {
 
 const MODES = [['weight', 'Lastre'], ['bodyweight', 'PC'], ['band', 'Banda']];
 
-export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDone = () => {}, label = '', showDone = true }) {
+export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDone = () => {}, label = '', hint = '', showDone = true }) {
   const row = el('div', { class: 'setrow' + (set.done && showDone ? ' done' : '') });
-  const rerender = () => row.replaceWith(setRow({ set, bands, last, onChange, onDone, label, showDone }));
+  const rerender = () => row.replaceWith(setRow({ set, bands, last, onChange, onDone, label, hint, showDone }));
   const bandList = Object.values(bands);
   if (set.load.mode === 'band') {
     const resolved = resolveBandId(set.load.bandId, bands);
@@ -71,6 +71,7 @@ export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDo
       el('span', { class: 'label-caps' }, label),
       last ? el('span', { class: 'muted small' }, `Última: ${last}`) : null,
     ),
+    hint ? el('p', { class: 'setrow-hint', dataset: { hint: '' } }, hint) : null,
     seg,
     el('div', { class: 'setrow-body' },
       el('div', { class: 'setrow-load' }, load),

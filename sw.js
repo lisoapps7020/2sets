@@ -1,5 +1,5 @@
 // Service worker: cache del app shell para uso offline y notificaciones del descanso.
-const VERSION = 'v1.4.3';
+const VERSION = 'v1.5.0';
 const CACHE = `2sets-${VERSION}`;
 // Librerías externas (Three.js) viven en una cache aparte que sobrevive a los cambios de VERSION.
 const VENDOR = '2sets-vendor-v1';
@@ -12,6 +12,7 @@ const SHELL = [
   './js/avatar/params.js', './js/avatar/scene.js', './js/version.js',
   './js/screens/home.js', './js/screens/session.js', './js/screens/history.js', './js/screens/progress.js', './js/screens/settings.js',
   './assets/icons/icon.svg', './assets/icons/icon-192.png', './assets/icons/icon-512.png',
+  './assets/avatar/estatua.glb',
 ];
 
 self.addEventListener('install', (e) => {

@@ -5,10 +5,10 @@ export const WARMUP_ITEMS = ['Articulaciones', 'Estiramiento', 'Bombeo suave'];
 
 export const BLOCK_META = {
   warmup:   { title: 'Ignis',        subtitle: 'Entrada en calor' },
-  approach: { title: 'Aproximación', subtitle: '2 series de 5, carga libre' },
-  main:     { title: 'Duo',          subtitle: 'Dos series al fallo' },
-  second:   { title: 'Secundus',     subtitle: '2 series de 12 a 15 al fallo' },
-  extra:    { title: 'Extra',        subtitle: 'Complementarios opcionales' },
+  approach: { title: 'Aproximación', subtitle: 'Calentamiento · 2 series de 5, carga libre' },
+  main:     { title: 'Duo',          subtitle: 'Ejercicio principal · 2 series al fallo' },
+  second:   { title: 'Secundus',     subtitle: 'Segundo ejercicio · 2 series de 12 a 15' },
+  extra:    { title: 'Extra',        subtitle: 'Complementos opcionales' },
 };
 
 export const EXTRA_SEEDS = [

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#EDE6DE"/>
+  <g fill="#895B3E">
+    <rect x="96" y="118" width="320" height="30" rx="6"/>
+    <rect x="112" y="364" width="288" height="30" rx="6"/>
+    <rect x="132" y="148" width="40" height="216"/>
+    <rect x="340" y="148" width="40" height="216"/>
+  </g>
+  <text x="256" y="322" text-anchor="middle" font-family="Cormorant Garamond, Georgia, 'Times New Roman', serif" font-size="176" font-weight="600" fill="#AE6A47">II</text>
+</svg>

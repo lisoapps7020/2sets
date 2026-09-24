@@ -58,3 +58,9 @@ window.addEventListener('hashchange', route);
 applyTheme();
 route();
 restoreRest();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>db check</title></head>
+<body>
+<pre id="out">running</pre>
+<script type="module">
+import * as db from '../../js/db.js';
+import { newSession } from '../../js/templates.js';
+const out = document.getElementById('out');
+const res = {};
+try {
+  await new Promise((resolve) => { const r = indexedDB.deleteDatabase('twosets'); r.onsuccess = r.onerror = r.onblocked = resolve; });
+  await db.ensureSeeds();
+  await db.ensureSeeds();
+  res.bands = (await db.getAll('bands')).length;
+  res.extras = (await db.getAll('extras')).length;
+  res.profileDefault = (await db.getProfile()).restMainSec;
+  await db.saveProfile({ ...(await db.getProfile()), name: 'Julián' });
+  res.profileName = (await db.getProfile()).name;
+  await db.put('bodyweight', { id: 'bw_1', date: '2026-09-01', kg: 80 });
+  await db.put('bodyweight', { id: 'bw_2', date: '2026-09-20', kg: 81 });
+  res.latestBw = (await db.latestBodyweight()).kg;
+  res.bwFor0910 = await db.bodyweightFor('2026-09-10');
+  res.bwForEarly = await db.bodyweightFor('2026-01-01');
+  const s = newSession({ day: 'pull', dateISO: '2026-09-24', bodyweightKg: 81, mainSuggestion: null, secondSuggestion: null });
+  await db.saveSession(s);
+  res.active = (await db.activeSession())?.id === s.id;
+  s.status = 'done'; s.finishedAt = Date.now();
+  await db.saveSession(s);
+  res.activeAfterDone = await db.activeSession();
+  res.sessions = (await db.listSessions()).length;
+  const dump = await db.exportAll();
+  res.exportKeys = Object.keys(dump).sort().join(',');
+  await db.clear('sessions');
+  res.afterClear = (await db.listSessions()).length;
+  await db.importAll(dump);
+  res.afterImport = (await db.listSessions()).length;
+  res.bandsAfterImport = Object.keys(await db.bandsById()).length;
+  let rejected = false;
+  try { await db.importAll({ app: 'nope' }); } catch (e) { rejected = e.message; }
+  res.rejectedImport = rejected;
+  res.ok = true;
+} catch (e) {
+  res.ok = false; res.error = String(e && e.stack || e);
+}
+out.textContent = 'RESULT ' + JSON.stringify(res);
+</script>
+</body></html>

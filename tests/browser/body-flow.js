@@ -49,10 +49,12 @@ $$('[data-section="Cuerpo"] [data-body=goal] .seg-btn').find((b) => b.textConten
 await sleep(400);
 res.retapKeepsStart = (await db.getProfile()).goal.startWeightKg === 80;
 
-// Medición con cinta: preview y guardado
+// Medición con cinta: trae altura y sexo del perfil, acepta peso, muestra la estimación y guarda todo
 $$('[data-section="Cuerpo"] .btn').find((b) => b.textContent === 'Registrar medidas').click();
-await sleep(300);
+await sleep(400);
 res.formOpen = !!$('[data-measure]');
+res.formPrefill = { height: $('[data-m=heightCm]').value, sex: $('[data-m=sex] .seg-btn.on')?.textContent, hasWeight: !!$('[data-m=weightKg]') };
+setInput($('[data-m=weightKg]'), 81.5, 'input');
 setInput($('[data-m=waistCm]'), 85, 'input');
 setInput($('[data-m=neckCm]'), 38, 'input');
 await sleep(100);
@@ -61,7 +63,28 @@ $$('[data-measure] .btn').find((b) => b.textContent === 'Guardar').click();
 await sleep(600);
 const m1 = await db.listMeasurements();
 res.cinta = { count: m1.length, source: m1[0]?.source, waist: m1[0]?.waistCm, bf: body.bodyFatOf(m1[0], await db.getProfile()) };
+res.weightSavedFromForm = (await db.latestBodyweight())?.kg;
 res.listed = sec('Cuerpo').innerText.includes('16,4');
+
+// Sin altura en el perfil: la altura escrita en el formulario se usa y se guarda en el perfil
+await db.saveProfile({ ...(await db.getProfile()), heightCm: null });
+location.hash = '#/inicio';
+await sleep(300);
+location.hash = '#/ajustes';
+await sleep(800);
+$$('[data-section="Cuerpo"] .btn').find((b) => b.textContent === 'Registrar medidas').click();
+await sleep(400);
+setInput($('[data-m=waistCm]'), 85, 'input');
+setInput($('[data-m=neckCm]'), 38, 'input');
+await sleep(100);
+res.previewWithoutHeight = $('[data-preview]').textContent;
+setInput($('[data-m=heightCm]'), 178, 'input');
+await sleep(100);
+res.previewWithHeight = $('[data-preview]').textContent;
+$$('[data-measure] .btn').find((b) => b.textContent === 'Guardar').click();
+await sleep(600);
+res.heightSavedFromForm = (await db.getProfile()).heightCm;
+res.countAfterSecond = (await db.listMeasurements()).length;
 
 // Medición inválida: cintura menor que cuello
 $$('[data-section="Cuerpo"] .btn').find((b) => b.textContent === 'Registrar medidas').click();
@@ -70,7 +93,7 @@ setInput($('[data-m=waistCm]'), 30, 'input');
 setInput($('[data-m=neckCm]'), 38, 'input');
 $$('[data-measure] .btn').find((b) => b.textContent === 'Guardar').click();
 await sleep(400);
-res.invalid = { count: (await db.listMeasurements()).length, toast: $('#toasts').innerText.split('\n').pop() };
+res.invalid = { count: (await db.listMeasurements()).length - 1, toast: $('#toasts').innerText.split('\n').pop() };
 
 // Balanza
 $$('[data-measure] [data-m=source] .seg-btn').find((b) => b.textContent === 'Balanza').click();
@@ -79,7 +102,7 @@ setInput($('[data-m=bodyFatPct]'), 18, 'input');
 $$('[data-measure] .btn').find((b) => b.textContent === 'Guardar').click();
 await sleep(600);
 const m2 = await db.listMeasurements();
-res.balanza = { count: m2.length, sources: m2.map((m) => m.source).sort(), pct: m2.find((m) => m.source === 'balanza')?.bodyFatPct };
+res.balanza = { count: m2.length, sources: [...new Set(m2.map((m) => m.source))].sort(), pct: m2.find((m) => m.source === 'balanza')?.bodyFatPct };
 res.formClosed = !$('[data-measure]');
 
 // Export incluye mediciones

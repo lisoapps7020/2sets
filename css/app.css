@@ -211,6 +211,7 @@ a { color: inherit; }
 .rest.done .rest-time { color: #C4A98C; }
 .rest.done .rest-actions { display: none; }
 .rest-actions { display: flex; gap: var(--s3); }
+.rest-status { font-size: 13px; color: #B8A896; max-width: 320px; margin: 0; }
 .rest .btn-wide { max-width: 320px; }
 
 /* Toasts */

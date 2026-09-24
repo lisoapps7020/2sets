@@ -31,7 +31,7 @@ const hostRules = opt('--host-resolver-rules', null); // ej. "MAP cdn.jsdelivr.n
 const chrome = spawn(exe, [
   '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
   `--user-data-dir=${profile}`, '--remote-debugging-port=0', `--window-size=${width},${height}`,
-  '--hide-scrollbars', ...(hostRules ? [`--host-resolver-rules=${hostRules}`] : []), 'about:blank',
+  '--hide-scrollbars', '--autoplay-policy=no-user-gesture-required', ...(hostRules ? [`--host-resolver-rules=${hostRules}`] : []), 'about:blank',
 ], { stdio: ['ignore', 'ignore', 'pipe'] });
 
 const wsUrl = await new Promise((resolve, reject) => {

@@ -12,9 +12,11 @@
     <button id="rest-plus" class="btn btn-ghost btn-dark" type="button">+30 s</button>
   </div>
   <button id="rest-skip" class="btn btn-primary btn-wide" type="button">Listo, sigo</button>
+  <p id="rest-status" class="rest-status"></p>
+  <button id="rest-notify" class="btn btn-ghost btn-dark btn-sm" type="button" hidden>Activar notificaciones</button>
 </div>
 <script type="module">
-import { startRest, adjustRest, skipRest, restoreRest, isResting } from '../../js/timer.js';
+import { startRest, adjustRest, skipRest, restoreRest, isResting, debugAudio } from '../../js/timer.js';
 const out = document.getElementById('out');
 const o = document.getElementById('rest-overlay');
 const time = () => document.getElementById('rest-time').textContent;
@@ -24,10 +26,14 @@ try {
   localStorage.removeItem('restEndAt');
   startRest(200, { label: 'Prueba' });
   res.shownOnStart = o.hidden === false;
+  await sleep(150);
+  res.audioAfterStart = debugAudio(); // contexto creado en el toque, sonido programado 3 veces
+  res.statusText = document.getElementById('rest-status').textContent;
   res.label = document.getElementById('rest-label').textContent;
   res.t200 = time();
   adjustRest(-30);
   res.tMinus = time();
+  res.audioAfterAdjust = debugAudio(); // reprogramado, sigue habiendo 3
   adjustRest(30);
   res.tPlus = time();
   startRest(9999);
@@ -36,6 +42,7 @@ try {
   res.resting = isResting();
   document.getElementById('rest-skip').click();
   res.hiddenAfterSkip = o.hidden === true;
+  res.audioAfterSkip = debugAudio(); // cancelado
   res.storedAfterSkip = localStorage.getItem('restEndAt');
   localStorage.setItem('restEndAt', JSON.stringify({ endAt: Date.now() + 700, label: 'Restaurado' }));
   res.restored = restoreRest();
@@ -47,6 +54,7 @@ try {
   res.tZero = time();
   res.storedAfterFire = localStorage.getItem('restEndAt');
   res.actionsHiddenWhenDone = getComputedStyle(document.querySelector('.rest-actions')).display === 'none';
+  res.audioAfterFire = debugAudio(); // el disparo por timer no cancela los sonidos programados
   res.ok = true;
 } catch (e) { res.ok = false; res.error = String(e && e.stack || e); }
 out.textContent = 'RESULT ' + JSON.stringify(res);

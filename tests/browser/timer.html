@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>timer check</title>
+<link rel="stylesheet" href="../../css/tokens.css"><link rel="stylesheet" href="../../css/app.css"></head>
+<body>
+<pre id="out">running</pre>
+<div id="rest-overlay" class="rest" hidden>
+  <p id="rest-label" class="label-caps"></p>
+  <h2 id="rest-title">Descanso</h2>
+  <div id="rest-time" class="rest-time">05:00</div>
+  <div class="rest-actions">
+    <button id="rest-minus" class="btn btn-ghost btn-dark" type="button">−30 s</button>
+    <button id="rest-plus" class="btn btn-ghost btn-dark" type="button">+30 s</button>
+  </div>
+  <button id="rest-skip" class="btn btn-primary btn-wide" type="button">Listo, sigo</button>
+</div>
+<script type="module">
+import { startRest, adjustRest, skipRest, restoreRest, isResting } from '../../js/timer.js';
+const out = document.getElementById('out');
+const o = document.getElementById('rest-overlay');
+const time = () => document.getElementById('rest-time').textContent;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const res = {};
+try {
+  localStorage.removeItem('restEndAt');
+  startRest(200, { label: 'Prueba' });
+  res.shownOnStart = o.hidden === false;
+  res.label = document.getElementById('rest-label').textContent;
+  res.t200 = time();
+  adjustRest(-30);
+  res.tMinus = time();
+  adjustRest(30);
+  res.tPlus = time();
+  startRest(9999);
+  res.tMax = time();
+  res.stored = !!localStorage.getItem('restEndAt');
+  res.resting = isResting();
+  document.getElementById('rest-skip').click();
+  res.hiddenAfterSkip = o.hidden === true;
+  res.storedAfterSkip = localStorage.getItem('restEndAt');
+  localStorage.setItem('restEndAt', JSON.stringify({ endAt: Date.now() + 700, label: 'Restaurado' }));
+  res.restored = restoreRest();
+  res.shownAfterRestore = o.hidden === false;
+  res.labelRestored = document.getElementById('rest-label').textContent;
+  await sleep(1600);
+  res.doneClass = o.classList.contains('done');
+  res.titleDone = document.getElementById('rest-title').textContent;
+  res.tZero = time();
+  res.storedAfterFire = localStorage.getItem('restEndAt');
+  res.ok = true;
+} catch (e) { res.ok = false; res.error = String(e && e.stack || e); }
+out.textContent = 'RESULT ' + JSON.stringify(res);
+</script>
+</body></html>

@@ -3,6 +3,7 @@ import * as session from './screens/session.js';
 import * as history from './screens/history.js';
 import * as progress from './screens/progress.js';
 import * as settings from './screens/settings.js';
+import { restoreRest } from './timer.js';
 
 const ROUTES = {
   '/inicio': home,
@@ -56,3 +57,4 @@ async function route() {
 window.addEventListener('hashchange', route);
 applyTheme();
 route();
+restoreRest();

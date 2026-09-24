@@ -17,3 +17,11 @@ test('fmtDate renders spanish weekday and month', () => {
   assert.equal(fmtDate('2026-09-24'), 'jueves 24 de septiembre');
   assert.equal(fmtDate('2026-09-24', { weekday: false }), '24 de septiembre');
 });
+
+test('prText describes a PR in short form', async () => {
+  const { prText } = await import('../js/ui.js');
+  assert.equal(prText({ exerciseId: 'dips', slot: 0, type: 'maxAdded', value: 25 }), 'Fondos S1 · +25 kg');
+  assert.equal(prText({ exerciseId: 'pullups', slot: 1, type: 'maxTotal', value: 92.5 }), 'Dominadas S2 · 92,5 kg total');
+  assert.equal(prText({ exerciseId: 'dips', slot: 0, type: 'maxE1RM', value: 136.5 }), 'Fondos S1 · 1RM 137 kg');
+  assert.equal(prText({ exerciseId: 'decline_pushups', slot: 0, type: 'maxBwReps', value: 15 }), 'Flex. decl. S1 · 15 reps PC');
+});

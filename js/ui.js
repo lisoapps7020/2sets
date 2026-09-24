@@ -1,4 +1,17 @@
 // Helpers de DOM y formato. Sin dependencias.
+import { EXERCISES } from './model.js';
+
+// Texto corto de un PR: 'Fondos S1 · +25 kg'
+export function prText(pr) {
+  const ex = EXERCISES[pr.exerciseId]?.short || pr.exerciseId;
+  const slot = `S${Number(pr.slot) + 1}`;
+  const v = pr.value;
+  const what = pr.type === 'maxAdded' ? `+${fmtKg(v)}`
+    : pr.type === 'maxTotal' ? `${fmtKg(v)} total`
+    : pr.type === 'maxE1RM' ? `1RM ${fmtKg(Math.round(v))}`
+    : `${fmtNum(v)} reps PC`;
+  return `${ex} ${slot} · ${what}`;
+}
 
 export function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);

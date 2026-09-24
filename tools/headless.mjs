@@ -88,6 +88,12 @@ while (Date.now() - start < timeout) {
 
 let value;
 try { value = await evaluate(evalExpr); } catch (e) { exceptions.push(`eval: ${e.message}`); }
+const shot = opt('--shot', null);
+if (shot) {
+  const { writeFileSync } = await import('node:fs');
+  const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+  if (r.result?.data) { writeFileSync(shot, Buffer.from(r.result.data, 'base64')); console.log(`--- screenshot: ${shot} ---`); }
+}
 console.log(typeof value === 'string' ? value : JSON.stringify(value, null, 2));
 if (consoleLines.length) console.log('--- console ---\n' + consoleLines.join('\n'));
 if (exceptions.length) console.log('--- exceptions ---\n' + exceptions.join('\n'));

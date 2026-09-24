@@ -1,8 +1,10 @@
 import { el, fmtNum, fmtDate, todayISO, toast, confirmDialog } from '../ui.js';
-import { getProfile, saveProfile, getAll, put, del, latestBodyweight, exportAll, importAll, validateExport, ensureSeeds } from '../db.js';
+import { getProfile, saveProfile, getAll, put, del, latestBodyweight, exportAll, importAll, validateExport, ensureSeeds, listMeasurements } from '../db.js';
 import { clampRest, EXERCISES } from '../model.js';
 import { uid } from '../templates.js';
 import { applyTheme } from '../app.js';
+import { measureForm } from '../measure.js';
+import { weeklyAvg, bodyFatOf } from '../body.js';
 
 let c = null;
 let navigate = () => {};
@@ -29,7 +31,7 @@ function field(label, input) {
 }
 
 async function draw() {
-  const [bwRows, bands, extras] = await Promise.all([getAll('bodyweight'), getAll('bands'), getAll('extras')]);
+  const [bwRows, bands, extras, measurements] = await Promise.all([getAll('bodyweight'), getAll('bands'), getAll('extras'), listMeasurements()]);
   bwRows.sort((a, b) => b.date.localeCompare(a.date));
   extras.sort((a, b) => a.name.localeCompare(b.name));
   const latest = bwRows[0] || null;
@@ -55,6 +57,46 @@ async function draw() {
       el('span', {}, `${fmtNum(r.kg)} kg`), el('span', { class: 'muted small' }, fmtDate(r.date, { weekday: false })),
       el('button', { type: 'button', class: 'link', onclick: async () => { try { await del('bodyweight', r.id); draw(); } catch { toast('No se pudo borrar', 'error'); } } }, 'Borrar'),
     ))) : null,
+  );
+
+  // Cuerpo: sexo, altura, objetivo y mediciones
+  const segOf = (key, options, current, onPick) => el('div', { class: 'seg', dataset: { body: key } }, ...options.map(([k, l]) => el('button', {
+    type: 'button', class: 'seg-btn' + (current === k ? ' on' : ''), onclick: () => onPick(k),
+  }, l)));
+  const heightInput = el('input', { class: 'input', type: 'number', inputmode: 'decimal', min: '100', max: '250', step: '1', placeholder: 'cm', dataset: { body: 'height' }, value: profile.heightCm ?? '',
+    onchange: (e) => { const v = Number(e.target.value); profile.heightCm = v >= 100 && v <= 250 ? v : null; persistProfile(); } });
+  const targetWeight = el('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.5', placeholder: 'kg', dataset: { body: 'targetWeight' }, value: profile.goal.targetWeightKg ?? '',
+    onchange: (e) => { const v = Number(e.target.value); profile.goal.targetWeightKg = v > 20 && v < 300 ? v : null; persistProfile(); } });
+  const targetFat = el('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.5', placeholder: '%', dataset: { body: 'targetFat' }, value: profile.goal.targetBodyFatPct ?? '',
+    onchange: (e) => { const v = Number(e.target.value); profile.goal.targetBodyFatPct = v >= 2 && v <= 60 ? v : null; persistProfile(); } });
+  const measureHost = el('div');
+  const cuerpo = card('Cuerpo',
+    el('p', { class: 'muted small' }, 'Sexo y altura se usan para estimar la grasa corporal con cinta métrica.'),
+    el('div', { class: 'field' }, el('label', {}, 'Sexo'), segOf('sex', [['m', 'Hombre'], ['f', 'Mujer']], profile.sex, (k) => { profile.sex = k; persistProfile(); draw(); })),
+    field('Altura (cm)', heightInput),
+    el('div', { class: 'field' }, el('label', {}, 'Objetivo'), segOf('goal', [['bajar', 'Bajar'], ['mantener', 'Mantener'], ['subir', 'Subir']], profile.goal.direction, (k) => {
+      profile.goal.direction = k;
+      profile.goal.setAt = todayISO();
+      profile.goal.startWeightKg = weeklyAvg(bwRows, todayISO()) ?? latest?.kg ?? null;
+      persistProfile();
+      draw();
+    })),
+    el('div', { class: 'grid-2' }, field('Peso objetivo (kg)', targetWeight), field('Grasa objetivo (%)', targetFat)),
+    profile.goal.setAt ? el('p', { class: 'muted small' }, `Objetivo fijado el ${fmtDate(profile.goal.setAt, { weekday: false })}${profile.goal.startWeightKg ? ` desde ${fmtNum(profile.goal.startWeightKg)} kg` : ''}.`) : null,
+    el('p', { class: 'label-caps', style: { marginTop: '8px' } }, 'Mediciones'),
+    measurements.length ? el('div', { class: 'list' }, ...measurements.slice(0, 5).map((m) => {
+      const bf = bodyFatOf(m, profile);
+      return el('div', { class: 'list-item' },
+        el('span', {}, bf === null ? 'sin estimación' : `${fmtNum(bf)} %`, el('span', { class: 'muted small' }, ` · ${m.source}`)),
+        el('span', { class: 'muted small' }, fmtDate(m.date, { weekday: false })),
+        el('button', { type: 'button', class: 'link', onclick: async () => { try { await del('measurements', m.id); draw(); } catch { toast('No se pudo borrar', 'error'); } } }, 'Borrar'),
+      );
+    })) : el('p', { class: 'muted small' }, 'Todavía no hay mediciones.'),
+    el('button', { type: 'button', class: 'btn', onclick: () => {
+      measureHost.replaceChildren(measureForm({ profile, onSaved: () => draw(), onCancel: () => measureHost.replaceChildren() }));
+      measureHost.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } }, 'Registrar medidas'),
+    measureHost,
   );
 
   // Descansos
@@ -155,7 +197,7 @@ async function draw() {
     el('p', { class: 'small' }, 'Fondos: serie 1 al fallo cerca de 10 reps, serie 2 con 20 a 25% menos, meta 15. Dominadas: 8 y 12. Al llegar a la meta sumás el incremento la próxima; si no, mismo peso. Segundo ejercicio: 2 series de 12 a 15 al fallo, sumás carga cuando las dos llegan a 15. Descansos de 5 a 7 minutos entre series principales. Siempre max out, nunca apuntar a un número.'),
   );
 
-  c.replaceChildren(el('h1', {}, 'Ajustes'), perfil, peso, descansos, incrementos, bandas, complementarios, tema, datos, metodo);
+  c.replaceChildren(el('h1', {}, 'Ajustes'), perfil, peso, cuerpo, descansos, incrementos, bandas, complementarios, tema, datos, metodo);
 }
 
 async function downloadBackup() {

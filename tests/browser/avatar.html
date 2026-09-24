@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>avatar check</title>
+<style>
+  body { margin: 0; background: #332A1F; color: #EDE6DE; font: 12px/1.4 monospace; }
+  canvas { display: block; }
+  pre { margin: 8px; white-space: pre-wrap; word-break: break-all; }
+</style></head>
+<body>
+<!-- Sin query: flujo completo con dispose. ?keep=maxed | ?keep=neutral | ?keep=custom&p={json} deja la figura
+     montada (sin dispose) para la captura visual; &rot=<rad> fija el ángulo (por defecto 0.25). -->
+<!-- Ejemplo: node tools/headless.mjs "http://127.0.0.1:8766/tests/browser/avatar.html?keep=maxed" --width 320 --height 380
+       --wait "document.getElementById('out').textContent.startsWith('RESULT')" --eval "document.getElementById('out').textContent" --shot out.png -->
+<canvas id="c" width="320" height="380" style="width:320px;height:380px"></canvas>
+<pre id="out">running</pre>
+<script type="module">
+import { createAvatar } from '../../js/avatar/scene.js';
+const out = document.getElementById('out');
+const canvas = document.getElementById('c');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const keep = new URLSearchParams(location.search).get('keep'); // null | 'maxed' | 'neutral' | 'custom'
+const neutral = { lat: 0.35, biceps: 0.35, triceps: 0.35, chest: 0.35, delt: 0.35, forearm: 0.35, waist: 0.4, belly: 0.2, scale: 1, mass: 1, aura: 0, unlocks: {}, tint: 'blanco', hair: 'short', beard: 'none' };
+const maxed = { ...neutral, lat: 1, chest: 1, waist: 1, biceps: 1, triceps: 1, aura: 0.8, unlocks: { gold: true, belt: true, laurel: true, pedestal: true, cape: true }, hair: 'long', beard: 'full' };
+const res = {};
+try {
+  res.webgl = !!(canvas.getContext('webgl2') || canvas.getContext('webgl'));
+  const avatar = await createAvatar(canvas, neutral);
+  res.created = !!avatar;
+  if (!avatar) throw new Error('createAvatar devolvió null');
+  res.api = ['update', 'setVisible', 'dispose', 'debug'].every((k) => typeof avatar[k] === 'function');
+  const d0 = avatar.debug();
+  res.d0 = d0;
+  res.contexts = d0.contexts;
+  avatar.update(maxed);
+  const d1 = avatar.debug();
+  res.d1 = d1;
+  res.chestGrew = d1.chestScale > d0.chestScale;
+  res.waistGrew = d1.waistScale > d0.waistScale;
+  res.armGrew = d1.upperArmScale > d0.upperArmScale;
+  res.gold = d1.gold === true;
+  res.hairBeard = d1.hair === 'long' && d1.beard === 'full';
+  // cambiar pelo/barba reconstruye esas mallas sin tocar el resto del grupo
+  avatar.update({ ...maxed, hair: 'bun', beard: 'short' });
+  const d2 = avatar.debug();
+  res.rebuild = d2.hair === 'bun' && d2.beard === 'short' && d2.parts === d1.parts;
+  avatar.update(maxed);
+  avatar.setVisible(true);
+  await sleep(600);
+  res.rotationChanged = avatar.debug().rotationY !== d1.rotationY;
+  // arrastre sintético: cada px horizontal gira 0.01 rad; el último move de 0 px deja la inercia en cero
+  const pev = (type, x, y) => canvas.dispatchEvent(new PointerEvent(type, { pointerId: 7, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, button: 0, bubbles: true, cancelable: true }));
+  const drag = (px) => {
+    let x = 100; pev('pointerdown', x, 100);
+    for (let left = px; Math.abs(left) > 0; ) { const step = Math.sign(left) * Math.min(10, Math.abs(left)); x += step; left -= step; pev('pointermove', x, 100); }
+    pev('pointermove', x, 100); pev('pointerup', x, 100);
+  };
+  const r0 = avatar.debug().rotationY;
+  drag(60);
+  res.dragRotated = Math.abs(avatar.debug().rotationY - r0 - 0.6) < 1e-9;
+  if (keep) {
+    // ?keep=neutral vuelve a los params neutros; ?keep=custom&p={json} aplica params arbitrarios sobre los neutros;
+    // &rot=<rad> gira la figura (arrastre sintético). Se pausa el bucle para que la captura sea estable.
+    const q = new URLSearchParams(location.search);
+    avatar.setVisible(false);
+    const target = q.has('rot') ? Number(q.get('rot')) : 0.25;
+    const delta = target - avatar.debug().rotationY;
+    if (Math.abs(delta) >= 0.01) drag(Math.round(delta / 0.01));
+    const custom = q.get('p');
+    if (keep === 'neutral') avatar.update(neutral);
+    else if (keep === 'custom' && custom) avatar.update({ ...neutral, ...JSON.parse(custom) });
+    else avatar.update(maxed);
+    res.kept = keep;
+    res.rotationY = avatar.debug().rotationY;
+    res.contextsAfter = null;
+  } else {
+    avatar.dispose();
+    res.contextsAfter = avatar.debug().contexts;
+  }
+  res.ok = res.webgl && res.created && res.api && res.chestGrew && res.waistGrew && res.armGrew && res.gold && res.hairBeard && res.rebuild && res.rotationChanged && res.dragRotated && (keep ? true : res.contextsAfter === 0);
+} catch (e) { res.ok = false; res.error = String(e && e.stack || e); }
+out.textContent = 'RESULT ' + JSON.stringify(res);
+</script>
+</body></html>

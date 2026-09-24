@@ -65,11 +65,15 @@ m2.querySelector('.setrow-body .btn').click();
 await sleep(120);
 $('#rest-skip').click();
 
-// Secundus: 15 y 15 a PC
+// Secundus: 15 y 15 a PC, con su propio descanso (4 min por defecto) y alarma
+res.restChips = $$('[data-block] .chip-rest').map((c) => `${c.closest('[data-block]').dataset.block}:${c.dataset.rest}`);
+res.blockColors = $$('[data-block]').map((b) => `${b.dataset.block}:${getComputedStyle(b).borderLeftColor}`);
+let firstSecond = true;
 for (const row of $$('[data-block=second] .setrow')) {
   setInput(row.querySelector('.stepper-big input'), 15);
   row.querySelector('.setrow-body .btn').click();
-  await sleep(80);
+  await sleep(120);
+  if (firstSecond) { res.overlayAfterSecond = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent, label: $('#rest-label').textContent }; firstSecond = false; }
   $('#rest-skip').click();
 }
 
@@ -82,6 +86,10 @@ await sleep(80);
 $('[data-block=extra] .extra-item .btn-sm').click();
 await sleep(80);
 res.extraRows = $$('[data-block=extra] .setrow').length;
+$$('[data-block=extra] .setrow')[0].querySelector('.setrow-body .btn').click();
+await sleep(120);
+res.overlayAfterExtra = { hidden: $('#rest-overlay').hidden, time: $('#rest-time').textContent };
+$('#rest-skip').click();
 
 // Persistencia: la sesión activa en IndexedDB refleja lo cargado
 await sleep(600);

@@ -1,5 +1,5 @@
 // Service worker: cache del app shell para uso offline y notificaciones del descanso.
-const VERSION = 'v1.4.2';
+const VERSION = 'v1.4.3';
 const CACHE = `2sets-${VERSION}`;
 // Librerías externas (Three.js) viven en una cache aparte que sobrevive a los cambios de VERSION.
 const VENDOR = '2sets-vendor-v1';

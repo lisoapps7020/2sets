@@ -15,6 +15,8 @@ export const DEFAULT_PROFILE = {
   incrementKg: { dips: 5, pullups: 5, second: 2.5 },
   restMainSec: 300,
   restApproachSec: 180,
+  restSecondSec: 240,
+  restExtraSec: 180,
   theme: 'auto',
   sex: 'm',
   heightCm: null,

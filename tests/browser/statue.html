@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>statue check</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<style>html,body{margin:0;background:#1D1A16}canvas{display:block}</style></head>
+<body>
+<canvas id="c" width="360" height="520" style="width:360px;height:520px"></canvas>
+<pre id="out" style="color:#ccc;font:12px monospace;margin:4px">running</pre>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+const q = new URLSearchParams(location.search);
+const out = document.getElementById('out');
+const canvas = document.getElementById('c');
+const res = {};
+try {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(2);
+  renderer.setSize(360, 520, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.82;
+  renderer.shadowMap.enabled = true;
+  const scene = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const camera = new THREE.PerspectiveCamera(32, 360 / 520, 0.1, 100);
+  const key = new THREE.DirectionalLight(0xfff2e0, 2.6); key.position.set(2.5, 5, 3); key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0005; key.shadow.radius = 4;
+  const rim = new THREE.DirectionalLight(0xc4a98c, 1.4); rim.position.set(-3, 3, -4);
+  scene.add(key, rim, new THREE.HemisphereLight(0xf5efe6, 0x3a2f25, 0.35));
+  const tint = q.get('tint') || 'blanco';
+  const colors = { blanco: 0xE9E2D9, crema: 0xE4D5BF, gris: 0xB3ABA1 };
+  // Vetas de mármol procedurales en un canvas: sutil variación de color y rugosidad
+  const veinTex = (() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 512; const g = cv.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 40; i++) {
+      g.strokeStyle = `rgba(120,110,100,${0.05 + Math.random() * 0.08})`; g.lineWidth = 1 + Math.random() * 2; g.beginPath();
+      let x = Math.random() * 512, y = Math.random() * 512; g.moveTo(x, y);
+      for (let k = 0; k < 12; k++) { x += (Math.random() - 0.5) * 90; y += (Math.random() - 0.5) * 90; g.lineTo(x, y); }
+      g.stroke();
+    }
+    const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const marble = new THREE.MeshPhysicalMaterial({ color: colors[tint] || colors.blanco, map: veinTex, roughness: 0.5, metalness: 0, clearcoat: 0.12, clearcoatRoughness: 0.6, sheen: 0.25, sheenColor: 0xfff8f0, envMapIntensity: 0.55 });
+  const gltf = await new GLTFLoader().loadAsync('../../assets/avatar/estatua.glb');
+  const root = gltf.scene;
+  let body = null;
+  const parts = {};
+  root.traverse((o) => { if (o.isMesh) { parts[o.name] = o; o.material = marble; o.castShadow = true; o.receiveShadow = true; if (o.name === 'body') body = o; } });
+  res.parts = Object.keys(parts);
+  const show = (q.get('show') || 'hair,beard_full,drape').split(',').filter(Boolean);
+  for (const [name, m] of Object.entries(parts)) if (name !== 'body') m.visible = show.includes(name);
+  res.morphs = Object.keys(body.morphTargetDictionary || {});
+  const set = (name, v) => { const i = body.morphTargetDictionary[name]; if (i !== undefined) body.morphTargetInfluences[i] = v; };
+  const preset = q.get('preset') || 'neutral';
+  const presets = {
+    neutral: {},
+    hero: { chest: 0.9, lat: 0.9, delt: 0.9, arm: 0.9, forearm: 0.7, waist_thin: 0.5, abs: 0.8, legs: 0.6 },
+    heavy: { waist: 0.9, belly: 0.8, arm: 0.3, chest: 0.3 },
+  };
+  for (const [k, v] of Object.entries(presets[preset] || {})) set(k, v);
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  res.size = [size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2)];
+  root.position.sub(center);
+  root.position.y += 0; // centrado
+  root.rotation.y = Number(q.get('rot') || 0.35);
+  scene.add(root);
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.62, 0.12, 48), new THREE.MeshStandardMaterial({ color: 0xD3C7BB, roughness: 0.8 }));
+  ped.position.y = -size.y / 2 - 0.06; ped.receiveShadow = true; scene.add(ped);
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(1.2, 48), new THREE.MeshBasicMaterial({ color: 0xC4A98C, transparent: true, opacity: 0.08 }));
+  glow.position.set(0, 0.2, -1.2); scene.add(glow);
+  const dist = (size.y * 1.12) / (2 * Math.tan((camera.fov * Math.PI) / 360));
+  if (q.get('focus') === 'head') {
+    const headY = size.y / 2 - 0.16;
+    camera.position.set(0, headY + 0.02, size.y * 0.42);
+    camera.lookAt(0, headY, 0);
+  } else {
+    camera.position.set(0, 0.05, dist);
+    camera.lookAt(0, -0.02, 0);
+  }
+  renderer.render(scene, camera);
+  res.tris = body.geometry.index ? body.geometry.index.count / 3 : body.geometry.attributes.position.count / 3;
+  res.ok = true;
+} catch (e) { res.ok = false; res.error = String(e && e.stack || e); }
+out.textContent = 'RESULT ' + JSON.stringify(res);
+</script>
+</body></html>

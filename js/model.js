@@ -1,8 +1,8 @@
 // Dominio del método 2 Sets. Funciones puras, sin DOM ni base de datos.
 
 export const EXERCISES = {
-  dips:            { day: 'push', role: 'main',   name: 'Fondos lastrados',    short: 'Fondos',    targets: [10, 15] },
-  pullups:         { day: 'pull', role: 'main',   name: 'Dominadas lastradas', short: 'Dominadas', targets: [8, 12] },
+  dips:            { day: 'push', role: 'main',   name: 'Fondos lastrados',    short: 'Fondos',    targets: [10, 15], ranges: [[8, 10], [12, 15]] },
+  pullups:         { day: 'pull', role: 'main',   name: 'Dominadas lastradas', short: 'Dominadas', targets: [8, 12], ranges: [[6, 8], [8, 12]] },
   decline_pushups: { day: 'push', role: 'second', name: 'Flexiones declinadas', short: 'Flex. decl.', range: [12, 15] },
   australian_rows: { day: 'pull', role: 'second', name: 'Remo australiano',    short: 'Remo aus.', range: [12, 15] },
 };
@@ -69,9 +69,10 @@ export function makeSet(load) {
 
 const usable = (s) => !!s && s.done !== false && num(s.reps) > 0;
 
-function suggestSlot(s, target, inc) {
+function suggestSlot(s, range, inc) {
+  const [lo, target] = range;
   if (!usable(s)) {
-    return { load: { mode: 'bodyweight', kg: 0, bandId: null }, hint: `Encontrá tu peso perfecto: el que te haga fallar cerca de ${target} reps.` };
+    return { load: { mode: 'bodyweight', kg: 0, bandId: null }, hint: `Encontrá tu peso perfecto: el que te haga fallar entre ${lo} y ${target} reps.` };
   }
   const mode = s.load?.mode || 'bodyweight';
   const kg = num(s.load?.kg);
@@ -79,22 +80,23 @@ function suggestSlot(s, target, inc) {
   const reps = num(s.reps);
   if (mode === 'weight') {
     if (reps >= target) return { load: { mode: 'weight', kg: kg + inc, bandId: null }, hint: `Llegaste a ${reps}. Subí a ${kgText(kg + inc)} kg.` };
-    return { load: { mode: 'weight', kg, bandId: null }, hint: `Mismo peso: buscá ${target} reps.` };
+    return { load: { mode: 'weight', kg, bandId: null }, hint: `Mismo peso: buscá ${lo} a ${target} reps; con ${target} subís.` };
   }
   if (mode === 'bodyweight') {
     if (reps >= target) return { load: { mode: 'weight', kg: inc, bandId: null }, hint: `Pasá a lastre: +${kgText(inc)} kg.` };
-    return { load: { mode: 'bodyweight', kg: 0, bandId: null }, hint: `Peso corporal: buscá ${target} reps.` };
+    return { load: { mode: 'bodyweight', kg: 0, bandId: null }, hint: `Peso corporal: buscá ${lo} a ${target} reps; con ${target} pasás a lastre.` };
   }
   if (reps >= target) return { load: { mode: 'band', kg: 0, bandId }, hint: 'Probá una banda más liviana o peso corporal.' };
-  return { load: { mode: 'band', kg: 0, bandId }, hint: `Misma banda: buscá ${target} reps.` };
+  return { load: { mode: 'band', kg: 0, bandId }, hint: `Misma banda: buscá ${lo} a ${target} reps.` };
 }
 
 export function suggestMain(exerciseId, lastBlock, opts = {}) {
   const inc = num(opts.incrementKg) || 5;
-  const [t1, t2] = EXERCISES[exerciseId]?.targets || [10, 15];
+  const [r1, r2] = EXERCISES[exerciseId]?.ranges || [[8, 10], [12, 15]];
+  const t2 = r2[1];
   const sets = lastBlock?.sets || [];
-  const s1 = suggestSlot(sets[0], t1, inc);
-  let s2 = suggestSlot(sets[1], t2, inc);
+  const s1 = suggestSlot(sets[0], r1, inc);
+  let s2 = suggestSlot(sets[1], r2, inc);
   const slot2HasWeightHistory = usable(sets[1]) && sets[1].load?.mode === 'weight';
   if (s1.load.mode === 'weight' && !slot2HasWeightHistory) {
     const seed = Math.min(Math.max(2.5, roundDown2_5(s1.load.kg * 0.8)), s1.load.kg);

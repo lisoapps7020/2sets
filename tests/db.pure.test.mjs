@@ -60,3 +60,10 @@ test('DEFAULT_PROFILE has body fields and goal', () => {
 test('DEFAULT_PROFILE has avatar customization defaults', () => {
   assert.deepEqual(DEFAULT_PROFILE.avatar, { tint: 'blanco', hair: 'short', beard: 'none' });
 });
+
+test('DEFAULT_PROFILE has a rest time per block, all within 3..7 minutes', () => {
+  assert.equal(DEFAULT_PROFILE.restApproachSec, 180);
+  assert.equal(DEFAULT_PROFILE.restMainSec, 300);
+  assert.equal(DEFAULT_PROFILE.restSecondSec, 240);
+  assert.equal(DEFAULT_PROFILE.restExtraSec, 180);
+});

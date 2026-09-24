@@ -67,3 +67,10 @@ test('makeSet defaults and copies the given load', () => {
   s.load.kg = 99;
   assert.equal(src.kg, 20);
 });
+
+test('rep ranges per set: pull 6-8 / 8-12, push 8-10 / 12-15, raise at the top of the range', () => {
+  assert.deepEqual(EXERCISES.pullups.ranges, [[6, 8], [8, 12]]);
+  assert.deepEqual(EXERCISES.dips.ranges, [[8, 10], [12, 15]]);
+  assert.deepEqual(EXERCISES.pullups.targets, [8, 12]);
+  assert.deepEqual(EXERCISES.dips.targets, [10, 15]);
+});

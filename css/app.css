@@ -139,6 +139,18 @@ a { color: inherit; }
 .list-item { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-bottom: 1px solid var(--border); }
 .list-item:last-child { border-bottom: 0; }
 
+/* Bloques de la sesión: un color por bloque para no confundirlos */
+[data-block="warmup"]   { --block: #C99A3B; }
+[data-block="approach"] { --block: #A88B6A; }
+[data-block="main"]     { --block: #AE6A47; }
+[data-block="second"]   { --block: #6E8B5B; }
+[data-block="extra"]    { --block: #6B7FA6; }
+[data-block="notes"]    { --block: var(--ink-muted); }
+.card[data-block] { border-left: 5px solid var(--block); }
+.card[data-block] .card-title { color: var(--block); }
+.card[data-block] .card-head .label-caps { color: var(--block); opacity: 0.9; }
+.chip-rest { background: var(--block); color: #fff; font-size: 11px; padding: 3px 10px; }
+
 /* Set rows */
 .setrow { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) 0; border-top: 1px solid var(--border); }
 .setrow.done { opacity: 0.75; }

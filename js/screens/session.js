@@ -111,12 +111,12 @@ async function start(day) {
   workout();
 }
 
-function blockCard(key, ...children) {
+function blockCard(key, extraHead, ...children) {
   const meta = BLOCK_META[key];
-  return el('section', { class: 'card', dataset: { block: key } },
+  return el('section', { class: `card block block-${key}`, dataset: { block: key } },
     el('div', { class: 'card-head' },
       el('h2', { class: 'card-title' }, meta.title),
-      el('span', { class: 'label-caps' }, meta.subtitle),
+      el('div', { class: 'row', style: { gap: '8px' } }, el('span', { class: 'label-caps' }, meta.subtitle), extraHead),
     ),
     ...children,
   );
@@ -132,12 +132,15 @@ function workout() {
   const b = session.blocks;
   const mainEx = b.main.exerciseId;
   const secondEx = b.second.exerciseId;
-  const [t1, t2] = EXERCISES[mainEx].targets;
+  const [r1, r2] = EXERCISES[mainEx].ranges;
   const [lo, hi] = EXERCISES[secondEx].range;
   const lastMain = lastBlock('main', mainEx);
   const lastSecond = lastBlock('second', secondEx);
   const restMain = () => profile.restMainSec;
   const restApproach = () => profile.restApproachSec;
+  const restSecond = () => profile.restSecondSec ?? profile.restMainSec;
+  const restExtra = () => profile.restExtraSec ?? profile.restApproachSec;
+  const restChip = (sec) => el('span', { class: 'chip chip-rest', dataset: { rest: String(sec) } }, `⏱ ${Math.round(sec / 60)} min`);
 
   const header = el('div', { class: 'row-between' },
     el('div', {},
@@ -147,33 +150,33 @@ function workout() {
     el('button', { type: 'button', class: 'link', onclick: discard }, 'Descartar'),
   );
 
-  const warmup = blockCard('warmup',
+  const warmup = blockCard('warmup', null,
     el('div', { class: 'list' }, ...WARMUP_ITEMS.map((name, i) => el('label', { class: 'check' },
       el('input', { type: 'checkbox', checked: !!b.warmup.items[i], onchange: (e) => { b.warmup.items[i] = e.target.checked; persist(); } }),
       el('span', {}, name),
     ))),
   );
 
-  const approach = blockCard('approach',
+  const approach = blockCard('approach', restChip(restApproach()),
     ...b.approach.sets.map((set, i) => setRow({
       set, bands, label: `Aprox ${i + 1} · 5 reps`, onChange: persist,
       onDone: () => startRest(restApproach(), { label: `Aproximación ${i + 1} hecha` }),
     })),
   );
 
-  const main = blockCard('main',
-    el('p', { class: 'muted small' }, `${EXERCISES[mainEx].name}. Max out en las dos. Meta ${t1} y ${t2} reps.`),
+  const main = blockCard('main', restChip(restMain()),
+    el('p', { class: 'muted small' }, `${EXERCISES[mainEx].name}. Max out en las dos. Serie 1: ${r1[0]} a ${r1[1]} reps, con ${r1[1]} subís peso. Serie 2: ${r2[0]} a ${r2[1]}, con ${r2[1]} subís.`),
     ...b.main.sets.map((set, i) => setRow({
-      set, bands, label: `Serie ${i + 1} · meta ${i === 0 ? t1 : t2}`, last: lastText(lastMain, i), onChange: persist,
+      set, bands, label: `Serie ${i + 1} · ${i === 0 ? `${r1[0]} a ${r1[1]}` : `${r2[0]} a ${r2[1]}`}`, last: lastText(lastMain, i), onChange: persist,
       onDone: () => startRest(restMain(), { label: `Serie ${i + 1} hecha` }),
     })),
   );
 
-  const second = blockCard('second',
-    el('p', { class: 'muted small' }, `${EXERCISES[secondEx].name}. ${lo} a ${hi} reps al fallo.`),
+  const second = blockCard('second', restChip(restSecond()),
+    el('p', { class: 'muted small' }, `${EXERCISES[secondEx].name}. ${lo} a ${hi} reps al fallo. Descanso con alarma entre series.`),
     ...b.second.sets.map((set, i) => setRow({
       set, bands, label: `Serie ${i + 1} · ${lo} a ${hi}`, last: lastText(lastSecond, i), onChange: persist,
-      onDone: () => startRest(restMain(), { label: `${EXERCISES[secondEx].short} ${i + 1} hecha` }),
+      onDone: () => startRest(restSecond(), { label: `${EXERCISES[secondEx].short} ${i + 1} hecha` }),
     })),
   );
 
@@ -189,7 +192,7 @@ function workout() {
         ),
         ...item.sets.map((set, i) => setRow({
           set, bands, label: `Serie ${i + 1}`, onChange: persist,
-          onDone: () => startRest(restApproach(), { label: `${name} ${i + 1} hecha` }),
+          onDone: () => startRest(restExtra(), { label: `${name} ${i + 1} hecha` }),
         })),
         el('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => { item.sets.push(makeSet(item.sets[item.sets.length - 1]?.load)); persist(); drawExtras(); } }, '+ serie'),
       );
@@ -209,7 +212,7 @@ function workout() {
     persist();
     drawExtras();
   });
-  const extra = blockCard('extra', extraHost, available.length ? picker : el('p', { class: 'muted small' }, 'No hay complementarios para este día. Agregalos en Ajustes.'));
+  const extra = blockCard('extra', restChip(restExtra()), extraHost, available.length ? picker : el('p', { class: 'muted small' }, 'No hay complementarios para este día. Agregalos en Ajustes.'));
 
   const notes = el('section', { class: 'card' },
     el('p', { class: 'label-caps' }, 'Notas'),

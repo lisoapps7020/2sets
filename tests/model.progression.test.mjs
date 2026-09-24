@@ -114,3 +114,12 @@ test('hints format decimals with comma', () => {
   assert.match(m.sets[0].hint, /32,5 kg/);
   assert.doesNotMatch(m.sets[0].hint, /32\.5/);
 });
+
+test('hints mention the full rep range', () => {
+  const s = suggestMain('pullups', { exerciseId: 'pullups', sets: [W(10, 7), W(5, 10)] });
+  assert.match(s.sets[0].hint, /6 a 8/);
+  assert.match(s.sets[1].hint, /8 a 12/);
+  const d = suggestMain('dips', null);
+  assert.match(d.sets[0].hint, /8 y 10|8 a 10/);
+  assert.match(d.sets[1].hint, /12 y 15|12 a 15/);
+});

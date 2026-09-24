@@ -118,7 +118,8 @@ async function draw() {
   const notifState = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
   const descansos = card('Descansos',
     el('p', { class: 'muted small' }, 'Entre 3 y 7 minutos. Se pueden ajustar durante el descanso.'),
-    el('div', { class: 'grid-2' }, restInput('restMainSec', 'Series principales (min)'), restInput('restApproachSec', 'Aproximación y extras (min)')),
+    el('div', { class: 'grid-2' }, restInput('restApproachSec', 'Aproximación (min)'), restInput('restMainSec', 'Principal (min)')),
+    el('div', { class: 'grid-2' }, restInput('restSecondSec', 'Segundo ejercicio (min)'), restInput('restExtraSec', 'Complementos (min)')),
     el('p', { class: 'muted small' }, 'La alarma suena en loop hasta que toques "Listo, sigo". Probala acá con el volumen del teléfono como lo usás en el gimnasio.'),
     el('div', { class: 'btn-row' },
       el('button', { type: 'button', class: 'btn', dataset: { testAlarm: '' }, onclick: () => { if (!testAlarm()) toast('Este navegador no puede reproducir audio', 'error'); } }, 'Probar alarma'),

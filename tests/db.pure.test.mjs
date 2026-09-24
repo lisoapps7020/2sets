@@ -56,3 +56,7 @@ test('DEFAULT_PROFILE has body fields and goal', () => {
   assert.equal(DEFAULT_PROFILE.heightCm, null);
   assert.deepEqual(DEFAULT_PROFILE.goal, { direction: 'mantener', targetWeightKg: null, targetBodyFatPct: null, setAt: null, startWeightKg: null });
 });
+
+test('DEFAULT_PROFILE has avatar customization defaults', () => {
+  assert.deepEqual(DEFAULT_PROFILE.avatar, { tint: 'blanco', hair: 'short', beard: 'none' });
+});

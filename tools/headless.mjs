@@ -27,10 +27,11 @@ const exe = process.env.CHROME || CANDIDATES.find((p) => existsSync(p));
 if (!exe) { console.error('no se encontró Chrome ni Edge'); process.exit(2); }
 
 const profile = mkdtempSync(join(tmpdir(), '2sets-headless-'));
+const hostRules = opt('--host-resolver-rules', null); // ej. "MAP cdn.jsdelivr.net ~NOTFOUND" para simular sin conexión a un host
 const chrome = spawn(exe, [
   '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
   `--user-data-dir=${profile}`, '--remote-debugging-port=0', `--window-size=${width},${height}`,
-  '--hide-scrollbars', 'about:blank',
+  '--hide-scrollbars', ...(hostRules ? [`--host-resolver-rules=${hostRules}`] : []), 'about:blank',
 ], { stdio: ['ignore', 'ignore', 'pipe'] });
 
 const wsUrl = await new Promise((resolve, reject) => {

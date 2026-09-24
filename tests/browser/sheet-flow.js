@@ -73,4 +73,29 @@ res.fatAfter = $('[data-fat] b')?.textContent;
 res.reminderAfter = !!$('[data-reminder]');
 res.cuerpoAttr = $$('[data-sheet=radar] text').map((t) => t.textContent.replace(/\s+/g, ' ').trim()).find((t) => t.startsWith('Cuerpo'));
 res.leanMass = $('[data-sheet=cuerpo]')?.innerText.includes('kg magros');
+
+// Personaje 3D: tarjeta, carga de la escena, personalizador y desbloqueos
+res.avatarCard = !!$('[data-sheet=avatar]');
+res.avatarCanvas = !!$('[data-sheet=avatar] canvas');
+for (let i = 0; i < 20 && !$('[data-sheet=avatar]').__avatar && $('[data-avatar-status]'); i++) await sleep(500);
+res.avatarStatus = $('[data-avatar-status]')?.textContent ?? 'ok';
+res.avatarReady = !!$('[data-sheet=avatar]').__avatar;
+// Cambiar un selector del gráfico redibuja la pantalla pero no reconstruye la estatua
+const apiBefore = $('[data-sheet=avatar]').__avatar;
+$$('.seg-btn').find((b) => b.textContent === 'Total').click();
+await sleep(400);
+res.avatarKeptAcrossDraw = $('[data-sheet=avatar]').__avatar === apiBefore && !$('[data-avatar-status]') && !apiBefore.debug().disposed;
+$$('[data-sheet=avatar] .btn').find((b) => b.textContent === 'Personalizar').click();
+await sleep(200);
+$$('[data-avatar=hair] .seg-btn').find((b) => b.textContent === 'Largo').click();
+await sleep(400);
+$$('[data-avatar=tint] .seg-btn').find((b) => b.textContent === 'Gris').click();
+await sleep(400);
+res.avatarSaved = (await db.getProfile()).avatar;
+res.unlocks = $$('[data-unlock]').map((x) => `${x.dataset.unlock}:${x.dataset.state}`);
+res.avatarDebug = $('[data-sheet=avatar]').__avatar?.debug();
+// Sin fugas: entrar y salir de Progreso varias veces deja un solo renderer vivo
+for (let i = 0; i < 4; i++) { location.hash = '#/inicio'; await sleep(250); location.hash = '#/progreso'; await sleep(900); }
+for (let i = 0; i < 20 && !$('[data-sheet=avatar]').__avatar; i++) await sleep(500);
+res.avatarContextsAfterVisits = $('[data-sheet=avatar]').__avatar?.debug().contexts;
 return res;

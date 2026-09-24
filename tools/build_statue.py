@@ -250,18 +250,52 @@ def keep_faces(obj, predicate, exclude_verts=()):
     bpy.ops.object.mode_set(mode='OBJECT')
 
 
-def scalp_region(c):
-    """Pelo corto: cráneo por encima de la línea del pelo al frente, más sienes y nuca; sin cara ni orejas."""
-    if (c - skull_c).length > skull_r:
+ear_l = group_center(body, 'ears') or Vector((0.075, eye_y + 0.06, eye_z - 0.02))
+ear_centers = [Vector((abs(ear_l.x), ear_l.y, ear_l.z)), Vector((-abs(ear_l.x), ear_l.y, ear_l.z))]
+
+
+def make_shell(name, center, radii, offset, keep, thickness=0.012, smooth=2):
+    """Casco liso: una esfera envuelta sobre el cuerpo (shrinkwrap), recortada por un predicado y con grosor.
+    Sale sin los surcos que deja el propio mallado del cuerpo."""
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=center, segments=64, ring_count=40)
+    shell = bpy.context.view_layer.objects.active
+    shell.name = name
+    shell.data.name = name
+    shell.scale = radii
+    bpy.ops.object.transform_apply(scale=True)
+    sw = shell.modifiers.new('wrap', 'SHRINKWRAP')
+    sw.target = body
+    sw.wrap_method = 'NEAREST_SURFACEPOINT'
+    sw.offset = offset
+    bpy.ops.object.modifier_apply(modifier='wrap')
+    keep_faces(shell, keep)
+    sm = shell.modifiers.new('sm', 'SMOOTH')
+    sm.factor = 0.5
+    sm.iterations = smooth
+    bpy.ops.object.modifier_apply(modifier='sm')
+    sol = shell.modifiers.new('sol', 'SOLIDIFY')
+    sol.thickness = thickness
+    sol.offset = -1.0
+    sol.use_even_offset = True
+    bpy.ops.object.modifier_apply(modifier='sol')
+    for p in shell.data.polygons:
+        p.use_smooth = True
+    return shell
+
+
+def near_ear(c):
+    return any((c - e).length < 0.05 for e in ear_centers)
+
+
+def scalp_keep(c, n=None):
+    if near_ear(c):
         return False
-    if c.z > eye_z + 0.065:                       # coronilla y frente alta
+    if c.z > eye_z + 0.062:                       # coronilla y frente alta
         return True
-    return c.y > eye_y + 0.065 and c.z > eye_z - 0.055   # sienes altas y nuca
+    return c.y > eye_y + 0.055 and c.z > eye_z - 0.05   # sienes y nuca
 
 
-hair = plain_copy(body, 'hair_short')
-keep_faces(hair, scalp_region, ear_verts)
-add_relief(hair, thickness=0.02, noise_strength=0.0, noise_size=0.02, subdiv=1, smooth=2)
+hair = make_shell('hair_short', skull_c, (skull_r + 0.01, skull_r + 0.015, skull_r + 0.01), 0.016, scalp_keep, thickness=0.014, smooth=2)
 log('hair_short verts', len(hair.data.vertices))
 
 # Pelo largo: la malla auxiliar de MakeHuman sin los mechones sobre la cara
@@ -294,30 +328,28 @@ log('drape verts', len(drape.data.vertices))
 chin_z = min((body.matrix_world @ v.co).z for v in body.data.vertices if abs((body.matrix_world @ v.co).x) < 0.02 and (body.matrix_world @ v.co).y < eye_y + 0.01 and (body.matrix_world @ v.co).z > eye_z - 0.17)
 mouth_z = eye_z - 0.078
 log('face refs', 'chin_z', round(chin_z, 3), 'mouth_z', round(mouth_z, 3))
+beard_c = Vector((0.0, eye_y + 0.02, mouth_z - 0.035))
 
 
-def beard_region(c, n=None, full=True):
-    if (c - skull_c).length > skull_r + 0.03:
-        return False
-    if n is not None and n.z < -0.35:               # no la cara inferior del mentón
-        return False
-    if c.z < chin_z - 0.006:                        # no el cuello
-        return False
-    if c.y > eye_y + (0.085 if full else 0.05):      # mitad delantera y costados de la mandíbula
-        return False
-    if c.z > mouth_z - 0.010:                       # debajo de la boca
-        return False
-    return True
+def beard_keep(full):
+    def keep(c, n=None):
+        if n is not None:
+            if n.z < -0.25:                              # no la cara inferior del mentón
+                return False
+            if n.y > -0.15 and abs(n.x) < 0.45:          # solo caras que miran al frente o a los costados
+                return False
+        if c.z < chin_z - 0.002:                         # no el cuello
+            return False
+        if c.y > eye_y + (0.07 if full else 0.045):      # mentón y mandíbula, no la nuca
+            return False
+        if c.z > mouth_z - (0.010 if full else 0.016):   # debajo de la boca
+            return False
+        return True
+    return keep
 
 
-beard_short = plain_copy(body, 'beard_short')
-for m in list(beard_short.modifiers):
-    beard_short.modifiers.remove(m)
-keep_faces(beard_short, lambda c, n: beard_region(c, n, False))
-add_relief(beard_short, thickness=0.007, noise_strength=0.0, noise_size=0.02, subdiv=1, smooth=2)
-beard_full = plain_copy(body, 'beard_full')
-keep_faces(beard_full, lambda c, n: beard_region(c, n, True))
-add_relief(beard_full, thickness=0.02, noise_strength=0.0, noise_size=0.02, subdiv=1, smooth=3)
+beard_short = make_shell('beard_short', beard_c, (0.10, 0.11, 0.075), 0.005, beard_keep(False), thickness=0.006, smooth=2)
+beard_full = make_shell('beard_full', beard_c, (0.105, 0.115, 0.08), 0.016, beard_keep(True), thickness=0.016, smooth=3)
 log('beards verts', len(beard_short.data.vertices), len(beard_full.data.vertices))
 
 # ---------------------------------------------------------------- cuerpo: quitar auxiliares, suavizar

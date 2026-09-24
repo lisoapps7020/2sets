@@ -97,4 +97,18 @@ res.summary = $('#screen').innerText;
 location.hash = '#/inicio';
 await sleep(700);
 res.homeAfter = { text: $('#screen').innerText.slice(0, 400), stats: $$('.stat b').map((b) => b.textContent) };
+
+// Extras guardan su nombre en la sesión
+const doneSession = (await db.listSessions()).find((s) => s.status === 'done');
+res.extraName = doneSession.blocks.extra[0]?.name;
+
+// Empezar desde Inicio con ?day= limpia la URL para que una recarga no re-arranque
+location.hash = '#/entrenar?day=push';
+await sleep(900);
+res.queryStart = { title: $('#screen h1')?.textContent, hash: location.hash };
+// Descartar justo después de un cambio: no debe resucitar la sesión
+setInput($$('[data-block=main] .setrow')[0].querySelector('.stepper-big input'), 3);
+$$('#screen .link').find((b) => b.textContent === 'Descartar').click();
+await sleep(900);
+res.afterDiscard = { active: await db.activeSession(), chooser: $$('.daycard').length };
 return res;

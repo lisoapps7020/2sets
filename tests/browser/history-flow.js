@@ -23,7 +23,7 @@ const mk = (id, date, day, main, second) => ({
 await db.importAll({ app: '2sets', schemaVersion: 1, sessions: [
   mk('ses_a', '2026-08-20', 'push', [W(20, 9), W(15, 13)], [BW(12), BW(12)]),
   mk('ses_b', '2026-09-01', 'pull', [W(10, 8), W(5, 12)], [BW(15), BW(15)]),
-  mk('ses_c', '2026-09-08', 'push', [W(20, 10), W(15, 15)], [BW(15), BW(15)]),
+  { ...mk('ses_c', '2026-09-08', 'push', [W(20, 10), W(15, 15)], [BW(15), BW(15)]), blocks: { ...mk('x', '2026-09-08', 'push', [W(20, 10), W(15, 15)], [BW(15), BW(15)]).blocks, extra: [{ exerciseId: 'ex_gone', name: 'Curl de bíceps', sets: [W(10, 12)] }] } },
 ] });
 
 location.hash = '#/historial';
@@ -37,6 +37,7 @@ await sleep(600);
 res.detailTitle = $('#screen h1')?.textContent;
 res.detailBlocks = $$('[data-block]').map((x) => x.dataset.block);
 res.detailMain = $('[data-block=main]').innerText.replace(/\s+/g, ' ').trim();
+res.detailExtra = $('[data-block=extra]')?.innerText.replace(/\s+/g, ' ').trim();
 
 $$('#screen .btn').find((b) => b.textContent === 'Editar').click();
 await sleep(300);

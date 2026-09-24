@@ -95,5 +95,10 @@ export function confirmDialog(msg) {
 
 export function debounce(fn, ms = 300) {
   let t = null;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  let pending = null;
+  const run = () => { const args = pending; pending = null; t = null; fn(...args); };
+  const d = (...args) => { pending = args; clearTimeout(t); t = setTimeout(run, ms); };
+  d.cancel = () => { clearTimeout(t); t = null; pending = null; };
+  d.flush = () => { if (t !== null) { clearTimeout(t); run(); } };
+  return d;
 }

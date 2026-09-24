@@ -35,6 +35,10 @@ node tools/headless.mjs "http://127.0.0.1:8000/index.html#/inicio" --wait "docum
 
 Otros scripts en `tests/browser/`: `history-flow.js`, `progress-flow.js`, `settings-flow.js`, y las páginas `db.html` y `timer.html`.
 
+## Publicar cambios
+
+El service worker sirve los archivos propios desde su cache. Cada vez que cambies algo y lo publiques, subí la constante `VERSION` en `sw.js`; si no, los teléfonos siguen viendo la versión vieja. En desarrollo, para no pelear con la cache, abrí DevTools, pestaña Application, y marcá "Update on reload" o "Bypass for network".
+
 ## Instalar en el teléfono
 
 La cámara, las notificaciones y la instalación como PWA piden HTTPS. La opción prevista es GitHub Pages:

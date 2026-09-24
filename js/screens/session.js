@@ -28,12 +28,16 @@ export async function render(container, ctx) {
   session = await activeSession();
   if (session) return workout();
   const wanted = ctx.query?.day === 'push' || ctx.query?.day === 'pull' ? ctx.query.day : null;
-  if (wanted) return start(wanted);
+  if (wanted) {
+    // Limpia la URL: una recarga no debe volver a arrancar una sesión.
+    try { history.replaceState(null, '', '#/entrenar'); } catch {}
+    return start(wanted);
+  }
   chooser(nextDay(doneSessions[0]));
 }
 
 export function destroy() {
-  persist.flush?.();
+  persist.flush();
 }
 
 function lastBlock(kind, exerciseId) {
@@ -151,14 +155,15 @@ function workout() {
   const drawExtras = () => {
     extraHost.replaceChildren(...b.extra.map((item, idx) => {
       const ex = extras.find((e) => e.id === item.exerciseId);
+      const name = item.name || ex?.name || 'Complementario';
       return el('div', { class: 'extra-item' },
         el('div', { class: 'row-between' },
-          el('h3', {}, ex?.name || 'Complementario'),
+          el('h3', {}, name),
           el('button', { type: 'button', class: 'link', onclick: () => { b.extra.splice(idx, 1); persist(); drawExtras(); } }, 'Quitar'),
         ),
         ...item.sets.map((set, i) => setRow({
           set, bands, label: `Serie ${i + 1}`, onChange: persist,
-          onDone: () => startRest(restApproach(), { label: `${ex?.name || 'Extra'} ${i + 1} hecha` }),
+          onDone: () => startRest(restApproach(), { label: `${name} ${i + 1} hecha` }),
         })),
         el('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => { item.sets.push(makeSet(item.sets[item.sets.length - 1]?.load)); persist(); drawExtras(); } }, '+ serie'),
       );
@@ -172,7 +177,8 @@ function workout() {
   );
   picker.addEventListener('change', () => {
     if (!picker.value) return;
-    b.extra.push({ exerciseId: picker.value, sets: [makeSet()] });
+    const chosen = extras.find((e) => e.id === picker.value);
+    b.extra.push({ exerciseId: picker.value, name: chosen?.name || 'Complementario', sets: [makeSet()] });
     picker.value = '';
     persist();
     drawExtras();
@@ -188,11 +194,14 @@ function workout() {
 
 async function discard() {
   if (!(await confirmDialog('¿Descartar esta sesión? Se borra lo que cargaste.'))) return;
+  persist.cancel();
+  const doomed = session;
+  session = null;
   try {
-    await deleteSession(session.id);
-    session = null;
+    await deleteSession(doomed.id);
     chooser(nextDay(doneSessions[0]));
   } catch {
+    session = doomed;
     toast('No se pudo descartar', 'error');
   }
 }
@@ -201,6 +210,7 @@ async function finish() {
   const anyDone = session.blocks.main.sets.some((s) => s.done && s.reps > 0) || session.blocks.second.sets.some((s) => s.done && s.reps > 0);
   const msg = anyDone ? '¿Terminar y guardar la sesión?' : 'No marcaste ninguna serie del principal. ¿Guardar igual?';
   if (!(await confirmDialog(msg))) return;
+  persist.cancel();
   session.status = 'done';
   session.finishedAt = Date.now();
   const opts = { bandsById: bands, bodyweightFor: () => session.bodyweightKg ?? bwLatest?.kg ?? null };

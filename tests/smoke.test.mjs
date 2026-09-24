@@ -25,3 +25,18 @@ test('prText describes a PR in short form', async () => {
   assert.equal(prText({ exerciseId: 'dips', slot: 0, type: 'maxE1RM', value: 136.5 }), 'Fondos S1 · 1RM 137 kg');
   assert.equal(prText({ exerciseId: 'decline_pushups', slot: 0, type: 'maxBwReps', value: 15 }), 'Flex. decl. S1 · 15 reps PC');
 });
+
+test('debounce can be cancelled and flushed', async () => {
+  const { debounce } = await import('../js/ui.js');
+  let calls = 0;
+  const d = debounce(() => { calls += 1; }, 20);
+  d(); d.cancel();
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(calls, 0);
+  d(); d.flush();
+  assert.equal(calls, 1);
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(calls, 1);
+  d.flush();
+  assert.equal(calls, 1);
+});

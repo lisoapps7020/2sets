@@ -10,6 +10,8 @@ App web instalable (PWA) para registrar sesiones de calistenia con lastre siguie
 - Sugerencia de la próxima sesión con las reglas del método: 10 y 15 reps en fondos, 8 y 12 en dominadas, incrementos de 5 o 2,5 kg.
 - Historial editable, gráficos de lastre, carga total, 1RM estimado y reps, PRs e hitos.
 - Carga de sesiones pasadas desde Progreso, para pasar lo anotado en papel y ver la curva desde el día 1. Quedan marcadas como "papel" en el Historial.
+- Ficha de personaje en Progreso: nivel y experiencia con títulos romanos, radar de seis atributos (Tirón, Empuje, Base, Constancia, Volumen, Cuerpo), fuerza relativa con escalones de Novato a Élite y kilos que faltan para el siguiente, tendencia y alerta de estancamiento con acción sugerida, constancia de las últimas 8 semanas.
+- Cuerpo: sexo, altura y objetivo (bajar, mantener, subir) en Ajustes; mediciones con cinta métrica (grasa estimada con la fórmula de la Marina de EE. UU.) o con balanza de bioimpedancia; peso promedio semanal, cambios a 30 días y masa magra estimada.
 - Notas por sesión, y pedido del peso corporal al arrancar si hace más de una semana que no lo cargás.
 - Export e import de backup en JSON.
 
@@ -73,6 +75,11 @@ js/timer.js           descanso: wake lock, audio, alarma, notificación
 js/charts.js          gráfico SVG
 js/quotes.js          citas estoicas
 js/setrow.js          fila de serie
+js/backfill.js        carga manual de sesiones pasadas
+js/body.js            grasa corporal, masa magra, tendencias de peso (puro, testeado)
+js/stats.js           fuerza relativa, escalones, tendencia, estancamiento, constancia, XP y nivel (puro, testeado)
+js/sheet.js           arma la ficha de personaje
+js/measure.js         formulario de mediciones
 js/screens/           inicio, entrenar, historial, progreso, ajustes
 tests/                node --test y flujos de browser
 tools/                headless.mjs y make_icons.py

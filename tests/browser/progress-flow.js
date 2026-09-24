@@ -37,7 +37,7 @@ res.totalLabels = $$('.chart text').map((t) => t.textContent);
 $$('.seg-btn').find((b) => b.textContent === 'Serie 2').click();
 await sleep(200);
 res.slot2Dots = $$('.chart circle').length;
-res.prsSlot2 = $$('#screen .card')[1].innerText.replace(/\s+/g, ' ').trim();
+res.prsSlot2 = $$('#screen .card').find((c) => /^PRS/i.test(c.innerText.trim())).innerText.replace(/\s+/g, ' ').trim();
 
 const sel = $('#screen select');
 sel.value = 'pullups';
@@ -45,7 +45,7 @@ sel.dispatchEvent(new Event('change', { bubbles: true }));
 await sleep(200);
 res.pullupsDots = $$('.chart circle').length;
 res.pullupsPolyline = !!$('.chart polyline');
-res.prsPullups = $$('#screen .card')[1].innerText.replace(/\s+/g, ' ').trim();
+res.prsPullups = $$('#screen .card').find((c) => /^PRS/i.test(c.innerText.trim())).innerText.replace(/\s+/g, ' ').trim();
 res.milestones = $$('[data-milestone]').map((x) => x.textContent);
 res.barWidths = $$('.bar > i').map((i) => i.style.width);
 res.savedSel = localStorage.getItem('progress.sel');

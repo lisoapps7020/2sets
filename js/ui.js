@@ -93,6 +93,12 @@ export function confirmDialog(msg) {
   return Promise.resolve(window.confirm(msg));
 }
 
+// Reemplaza el contenido de un contenedor ignorando null/undefined/false.
+// (replaceChildren y append convierten null en el texto "null".)
+export function mount(container, ...children) {
+  container.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
+}
+
 export function debounce(fn, ms = 300) {
   let t = null;
   let pending = null;

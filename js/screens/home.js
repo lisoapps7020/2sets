@@ -1,4 +1,4 @@
-import { el, fmtDate, todayISO, loadText, prText } from '../ui.js';
+import { el, fmtDate, todayISO, loadText, prText, mount } from '../ui.js';
 import { getProfile, listSessions, activeSession, latestBodyweight, bandsById, ensureSeeds } from '../db.js';
 import { nextDay, suggestMain, MAIN_BY_DAY, EXERCISES, computePRs, detectNewPRs } from '../model.js';
 import { quoteFor } from '../quotes.js';
@@ -70,7 +70,7 @@ export async function render(c, { navigate }) {
     el('div', { class: 'stat' }, el('b', { style: { fontSize: '14px', lineHeight: '30px' } }, lastPr), el('span', {}, 'Último PR')),
   );
 
-  c.append(hero, quote, cardHost, stats,
+  mount(c, hero, quote, cardHost, stats,
     !bw ? el('p', { class: 'notice' }, 'Cargá tu peso corporal en Ajustes para calcular la carga total y el 1RM.') : null,
   );
 }

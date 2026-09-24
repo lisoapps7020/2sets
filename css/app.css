@@ -185,6 +185,14 @@ a { color: inherit; }
 
 /* Chart */
 .chart svg { width: 100%; height: auto; display: block; }
+.radar svg { max-width: 340px; margin: 0 auto; }
+
+/* Ficha */
+.xpbar { height: 12px; background: rgba(237, 230, 222, 0.15); border-radius: var(--r-pill); overflow: hidden; }
+.xpbar > i { display: block; height: 100%; background: var(--gold); border-radius: var(--r-pill); }
+.weeks { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.week-cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: var(--surface-2); font-weight: 800; color: var(--ink-muted); font-size: 14px; }
+.week-cell.on { background: var(--primary-strong); color: var(--primary-ink); }
 
 /* Rest overlay */
 .rest {

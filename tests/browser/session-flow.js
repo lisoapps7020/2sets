@@ -17,6 +17,8 @@ await sleep(900);
 
 res.blocks = $$('[data-block]').map((x) => x.dataset.block);
 res.title = $('#screen h1')?.textContent;
+const noNull = () => ![...$('#screen').childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() === 'null');
+res.noNullTextWorkout = noNull();
 res.blockTitles = $$('[data-block] .card-title').map((x) => x.textContent);
 
 // Sin peso corporal cargado: aparece el pedido; guardar 80 lo cierra y lo aplica a la sesión
@@ -111,7 +113,7 @@ res.summary = $('#screen').innerText;
 
 location.hash = '#/inicio';
 await sleep(700);
-res.homeAfter = { text: $('#screen').innerText.slice(0, 400), stats: $$('.stat b').map((b) => b.textContent) };
+res.homeAfter = { text: $('#screen').innerText.slice(0, 400), stats: $$('.stat b').map((b) => b.textContent), noNullText: noNull() };
 
 // Extras guardan su nombre en la sesión
 const doneSession = (await db.listSessions()).find((s) => s.status === 'done');

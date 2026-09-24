@@ -35,6 +35,7 @@ res.firstItem = $('.list-item')?.innerText.replace(/\s+/g, ' ').trim();
 $('.list-item').click();
 await sleep(600);
 res.detailTitle = $('#screen h1')?.textContent;
+res.noNullTextDetail = ![...$('#screen').childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() === 'null');
 res.detailBlocks = $$('[data-block]').map((x) => x.dataset.block);
 res.detailMain = $('[data-block=main]').innerText.replace(/\s+/g, ' ').trim();
 res.detailExtra = $('[data-block=extra]')?.innerText.replace(/\s+/g, ' ').trim();

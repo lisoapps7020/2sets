@@ -9,6 +9,29 @@ const out = document.getElementById('out');
 const res = {};
 try {
   await new Promise((resolve) => { const r = indexedDB.deleteDatabase('twosets'); r.onsuccess = r.onerror = r.onblocked = resolve; });
+  // Base v1 preexistente (como en un teléfono con la 1.2.1): el upgrade a v2 agrega mediciones y conserva los datos
+  await new Promise((resolve, reject) => {
+    const r = indexedDB.open('twosets', 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      d.createObjectStore('settings', { keyPath: 'key' });
+      for (const s of ['bodyweight', 'bands', 'extras']) d.createObjectStore(s, { keyPath: 'id' });
+      d.createObjectStore('sessions', { keyPath: 'id' }).createIndex('date', 'date');
+    };
+    r.onsuccess = () => {
+      const d = r.result;
+      const t = d.transaction('sessions', 'readwrite');
+      t.objectStore('sessions').put({ id: 'ses_old', date: '2026-01-01', day: 'push', status: 'done', blocks: { main: { exerciseId: 'dips', sets: [] }, second: { exerciseId: 'decline_pushups', sets: [] }, extra: [] } });
+      t.oncomplete = () => { d.close(); resolve(); };
+      t.onerror = () => reject(t.error);
+    };
+    r.onerror = () => reject(r.error);
+  });
+  const upgraded = await db.open();
+  res.upgradeVersion = upgraded.version;
+  res.upgradeHasMeasurements = upgraded.objectStoreNames.contains('measurements');
+  res.upgradeKeptSessions = (await db.listSessions()).map((s) => s.id).join(',') === 'ses_old';
+  await db.deleteSession('ses_old');
   await db.ensureSeeds();
   await db.ensureSeeds();
   res.bands = (await db.getAll('bands')).length;
@@ -41,6 +64,20 @@ try {
   await db.importAll({ app: '2sets', schemaVersion: 1, settings: [], bodyweight: [], bands: [], extras: [], sessions: [] });
   await db.ensureSeeds();
   res.noReseedAfterImport = (await db.getAll('bands')).length === 0 && (await db.getAll('extras')).length === 0;
+  // Backup v1 (sin mediciones) importa en la base v2 y deja la tabla vacía
+  await db.importAll({ app: '2sets', schemaVersion: 1, settings: [], bodyweight: [], bands: [], extras: [], sessions: [{ id: 'ses_v1', date: '2026-01-05', day: 'push', status: 'done', blocks: { main: { exerciseId: 'dips', sets: [] }, second: { exerciseId: 'decline_pushups', sets: [] }, extra: [] } }] });
+  res.v1ImportOk = (await db.listMeasurements()).length === 0 && (await db.listSessions()).length === 1;
+  await db.put('measurements', { id: 'mea_1', date: '2026-09-01', source: 'balanza', waistCm: null, neckCm: null, hipCm: null, bodyFatPct: 18 });
+  res.latestMeasurement = (await db.latestMeasurement())?.bodyFatPct;
+  res.exportHasMeasurements = Array.isArray((await db.exportAll()).measurements) && (await db.exportAll()).schemaVersion === 2;
+  // Otra pestaña pide una versión más nueva: nuestra conexión abierta no debe bloquearla
+  res.secondOpenNotBlocked = await new Promise((resolve) => {
+    const r = indexedDB.open('twosets', 3);
+    const to = setTimeout(() => resolve(false), 3000);
+    r.onupgradeneeded = () => {};
+    r.onsuccess = () => { clearTimeout(to); r.result.close(); resolve(true); };
+    r.onerror = () => { clearTimeout(to); resolve(false); };
+  });
   res.ok = true;
 } catch (e) {
   res.ok = false; res.error = String(e && e.stack || e);

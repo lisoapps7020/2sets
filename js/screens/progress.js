@@ -109,7 +109,9 @@ function strengthCard(ex) {
   if (has) {
     lines.push(el('p', {}, el('b', {}, `${fmtNum(s.ratio)}×`), el('span', { class: 'muted small' }, ` tu peso corporal · 1RM estimado ${fmtKg(Math.round(s.e1rm))}`)));
     if (s.kgToNext !== null && s.tier.nextRatio !== null) {
-      lines.push(el('p', { class: 'small', dataset: { next: ex } }, `Te faltan ${fmtNum(s.kgToNext)} kg de lastre a ${s.targetReps} reps para ${s.tier.nextName}.`));
+      lines.push(el('p', { class: 'small', dataset: { next: ex } }, s.kgToNext > 0
+        ? `Te faltan ${fmtNum(s.kgToNext)} kg de lastre a ${s.targetReps} reps para ${s.tier.nextName}.`
+        : `Llegá a ${s.targetReps} reps a peso corporal para ${s.tier.nextName}.`));
     } else if (s.tier.nextRatio === null) {
       lines.push(el('p', { class: 'small' }, 'Estás en Élite. Ahora es mantener y afinar.'));
     }
@@ -118,7 +120,13 @@ function strengthCard(ex) {
     lines.push(el('p', { class: 'small', dataset: { stagnation: ex }, style: st.stagnant ? { color: 'var(--danger)', fontWeight: 700 } : {} },
       st.stagnant ? `Estancado: ${st.count} sesiones sin superar tu mejor serie 1. ${st.suggestion}` : (s.sessions ? `En racha: ${st.count === 0 ? 'la última sesión fue tu mejor marca.' : `${st.count} sesión${st.count > 1 ? 'es' : ''} desde tu mejor marca.`}` : '')));
   } else {
-    lines.push(el('p', { class: 'muted small' }, done.length ? 'Falta tu peso corporal para calcular la fuerza relativa.' : 'Registrá sesiones para ver tu fuerza relativa.'));
+    const what = s.short.toLowerCase();
+    const msg = s.sessions === 0
+      ? `Todavía no registraste ${what}.`
+      : sheet.body.currentWeight === null
+        ? 'Falta tu peso corporal para calcular la fuerza relativa.'
+        : `Sin sesiones de ${what} en las últimas 8 semanas.`;
+    lines.push(el('p', { class: 'muted small', dataset: { empty: ex } }, msg));
   }
   return el('section', { class: 'card', dataset: { sheet: ex } },
     el('div', { class: 'row-between' }, el('h3', {}, s.name), tierChip),

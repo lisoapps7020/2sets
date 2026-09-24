@@ -27,6 +27,14 @@ for (let i = 0; i < 10; i++) {
   if (i % 2 === 0) sessions.push(mk(i, date, 'pull', [W(10 + 2.5 * (i / 2), 8), W(5 + 2.5 * (i / 2), 12)]));
   else sessions.push(mk(i, date, 'push', [W(20, i === 1 ? 10 : 9), W(15, 13)]));
 }
+// Fase previa: peso cargado y solo una sesión de dominadas → la tarjeta de fondos explica qué falta
+await db.importAll({ app: '2sets', schemaVersion: 2, bodyweight: [{ id: 'bw_0', date: addDays(todayISO, -2), kg: 80 }], sessions: [mk(99, addDays(todayISO, -3), 'pull', [W(10, 8), W(5, 12)])], settings: [], measurements: [] });
+location.hash = '#/progreso';
+await sleep(900);
+res.dipsEmptyMsg = $('[data-empty=dips]')?.textContent;
+location.hash = '#/inicio';
+await sleep(300);
+
 await db.importAll({ app: '2sets', schemaVersion: 2, bodyweight: [{ id: 'bw_1', date: addDays(todayISO, -45), kg: 82 }, { id: 'bw_2', date: addDays(todayISO, -2), kg: 80 }], sessions, settings: [{ key: 'profile', value: { name: 'Julián' } }], measurements: [] });
 
 location.hash = '#/progreso';

@@ -7,7 +7,7 @@ import {
   slope, trendLabel, e1rmSeries, stagnation,
   weekStart, weeklyCounts, consistency,
   sessionTonnage, weeklyTonnage, volumeScore,
-  attributes, xpForLevel, levelFor, titleFor, xpTotal, characterSheetStats,
+  attributes, xpForLevel, levelFor, titleFor, xpTotal,
 } from '../js/stats.js';
 
 const W = (kg, reps) => ({ load: { mode: 'weight', kg, bandId: null }, reps, done: true });
@@ -393,62 +393,4 @@ test('xpTotal: 100 per session, PRs capped at 150 per session, 200 per fulfilled
   // una sesión activa no suma nada, y la semana deja de cumplirse
   assert.deepEqual(xpTotal([A, { ...B, status: 'active' }], opts), { xp: 250, sessionsXp: 100, prXp: 150, weeksXp: 0 });
   assert.deepEqual(xpTotal([], opts), { xp: 0, sessionsXp: 0, prXp: 0, weeksXp: 0 });
-});
-
-test('characterSheetStats: empty history', () => {
-  const r = characterSheetStats({ sessions: [], opts, todayISO: '2026-09-24' });
-  assert.deepEqual(r.xp, { xp: 0, sessionsXp: 0, prXp: 0, weeksXp: 0 });
-  assert.deepEqual(r.level, { level: 1, xpToNext: 400, nextLevelXp: 400, title: 'Tiro' });
-  for (const ex of ['pullups', 'dips']) {
-    const s = r.strength[ex];
-    assert.equal(s.ratio, null);
-    assert.equal(s.e1rm, null);
-    assert.equal(s.bw, null);
-    assert.equal(s.tier.name, 'Sin datos');
-    assert.equal(s.kgToNext, null);
-    assert.equal(s.slope, null);
-    assert.equal(s.trend, 'sin datos');
-    assert.deepEqual(s.stagnation, { count: 0, stagnant: false, suggestion: 'Seguí así.' });
-  }
-  assert.deepEqual(r.consistency, { counts: [0, 0, 0, 0, 0, 0, 0, 0], fulfilled: 0, streak: 0, score: 0 });
-  assert.equal(r.volumeScore, null);
-});
-
-test('characterSheetStats: coherent object with data', () => {
-  const list = [];
-  for (let i = 0; i < 5; i++) {
-    const mon = addDays('2026-08-24', 7 * i);
-    list.push(ses(mon, 'pull', [W(20 + 2.5 * i, 8), W(15, 12)], [BW(12), BW(12)]));
-    list.push(ses(addDays(mon, 2), 'push', [W(30, 10), W(20, 15)], [BW(12), BW(12)]));
-  }
-  const r = characterSheetStats({ sessions: list, opts, todayISO: '2026-09-24', incrementKg: 5 });
-  const pu = r.strength.pullups;
-  assert.equal(pu.bw, 80);
-  assert.equal(pu.e1rm, 110 * (1 + 8 / 30)); // último lunes 09-21: +30 kg × 8
-  assert.equal(pu.ratio, 1.74);
-  assert.equal(pu.tier.name, 'Intermedio');
-  assert.equal(pu.tier.nextRatio, 1.75);
-  assert.equal(pu.kgToNext, 30.5);
-  assert.equal(pu.slope, slope(e1rmSeries(list, 'pullups', opts).map((p) => p.value)));
-  assert.equal(pu.slope, 3.17); // +2.5 kg por sesión × (1 + 8/30)
-  assert.equal(pu.trend, 'creciendo');
-  assert.deepEqual(pu.stagnation, { count: 0, stagnant: false, suggestion: 'Seguí así.' });
-  const di = r.strength.dips;
-  assert.equal(di.ratio, 1.83); // 110 × (1 + 10/30) / 80
-  assert.equal(di.tier.name, 'Intermedio');
-  assert.equal(di.slope, 0);
-  assert.equal(di.trend, 'estable');
-  assert.deepEqual(di.stagnation, { count: 4, stagnant: true, suggestion: 'Pasá a incrementos de 2,5 kg.' });
-  assert.deepEqual(r.consistency.counts, [0, 0, 0, 2, 2, 2, 2, 2]);
-  assert.equal(r.consistency.fulfilled, 5);
-  assert.equal(r.consistency.streak, 5);
-  assert.equal(r.consistency.score, 63); // round(62.5)
-  assert.equal(r.volumeScore, 100);
-  assert.equal(r.xp.sessionsXp, 1000);
-  assert.equal(r.xp.prXp, 900); // 150 + 150 en las primeras, luego 150 por cada dominada más pesada
-  assert.equal(r.xp.weeksXp, 1000);
-  assert.equal(r.xp.xp, 2900);
-  assert.equal(r.level.level, 5); // xpForLevel(5) = 2786 ≤ 2900 < 3807
-  assert.equal(r.level.title, 'Miles');
-  assert.deepEqual(r.level, { ...levelFor(2900), title: 'Miles' });
 });

@@ -65,8 +65,19 @@ async function draw() {
   }, l)));
   const heightInput = el('input', { class: 'input', type: 'number', inputmode: 'decimal', min: '100', max: '250', step: '1', placeholder: 'cm', dataset: { body: 'height' }, value: profile.heightCm ?? '',
     onchange: (e) => { const v = Number(e.target.value); profile.heightCm = v >= 100 && v <= 250 ? v : null; persistProfile(); } });
+  // Fija el punto de partida del objetivo: fecha de hoy y peso promedio semanal (o el último conocido).
+  const anchorGoal = () => {
+    profile.goal.setAt = todayISO();
+    profile.goal.startWeightKg = weeklyAvg(bwRows, todayISO()) ?? latest?.kg ?? null;
+  };
   const targetWeight = el('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.5', placeholder: 'kg', dataset: { body: 'targetWeight' }, value: profile.goal.targetWeightKg ?? '',
-    onchange: (e) => { const v = Number(e.target.value); profile.goal.targetWeightKg = v > 20 && v < 300 ? v : null; persistProfile(); } });
+    onchange: (e) => {
+      const v = Number(e.target.value);
+      profile.goal.targetWeightKg = v > 20 && v < 300 ? v : null;
+      if (profile.goal.targetWeightKg !== null && profile.goal.startWeightKg === null) anchorGoal();
+      persistProfile();
+      draw();
+    } });
   const targetFat = el('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.5', placeholder: '%', dataset: { body: 'targetFat' }, value: profile.goal.targetBodyFatPct ?? '',
     onchange: (e) => { const v = Number(e.target.value); profile.goal.targetBodyFatPct = v >= 2 && v <= 60 ? v : null; persistProfile(); } });
   const measureHost = el('div');
@@ -75,9 +86,9 @@ async function draw() {
     el('div', { class: 'field' }, el('label', {}, 'Sexo'), segOf('sex', [['m', 'Hombre'], ['f', 'Mujer']], profile.sex, (k) => { profile.sex = k; persistProfile(); draw(); })),
     field('Altura (cm)', heightInput),
     el('div', { class: 'field' }, el('label', {}, 'Objetivo'), segOf('goal', [['bajar', 'Bajar'], ['mantener', 'Mantener'], ['subir', 'Subir']], profile.goal.direction, (k) => {
+      if (profile.goal.direction === k) return; // re-tocar la misma dirección no reinicia el progreso
       profile.goal.direction = k;
-      profile.goal.setAt = todayISO();
-      profile.goal.startWeightKg = weeklyAvg(bwRows, todayISO()) ?? latest?.kg ?? null;
+      anchorGoal();
       persistProfile();
       draw();
     })),

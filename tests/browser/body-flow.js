@@ -24,13 +24,30 @@ await sleep(300);
 const p1 = await db.getProfile();
 res.profile = { sex: p1.sex, heightCm: p1.heightCm };
 
-// Objetivo bajar con peso objetivo 76
-$$('[data-section="Cuerpo"] [data-body=goal] .seg-btn').find((b) => b.textContent === 'Bajar').click();
-await sleep(300);
+const d = new Date();
+const todayLocal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Peso objetivo sin tocar la dirección: ancla el punto de partida igual
 setInput($('[data-section="Cuerpo"] [data-body=targetWeight]'), 76);
-await sleep(300);
+await sleep(400);
 const p2 = await db.getProfile();
-res.goal = { direction: p2.goal.direction, targetWeightKg: p2.goal.targetWeightKg, startWeightKg: p2.goal.startWeightKg, setAtIsToday: p2.goal.setAt === new Date().toISOString().slice(0, 10) };
+res.goalFromTarget = { direction: p2.goal.direction, targetWeightKg: p2.goal.targetWeightKg, startWeightKg: p2.goal.startWeightKg, setAtIsToday: p2.goal.setAt === todayLocal };
+
+// Tocar Bajar fija la dirección
+$$('[data-section="Cuerpo"] [data-body=goal] .seg-btn').find((b) => b.textContent === 'Bajar').click();
+await sleep(400);
+const p3 = await db.getProfile();
+res.goal = { direction: p3.goal.direction, targetWeightKg: p3.goal.targetWeightKg, startWeightKg: p3.goal.startWeightKg, setAtIsToday: p3.goal.setAt === todayLocal };
+
+// Con un peso nuevo, re-tocar la misma dirección no reinicia el punto de partida
+await db.put('bodyweight', { id: 'bw_2', date: todayLocal, kg: 85 });
+location.hash = '#/inicio';
+await sleep(300);
+location.hash = '#/ajustes';
+await sleep(800);
+$$('[data-section="Cuerpo"] [data-body=goal] .seg-btn').find((b) => b.textContent === 'Bajar').click();
+await sleep(400);
+res.retapKeepsStart = (await db.getProfile()).goal.startWeightKg === 80;
 
 // Medición con cinta: preview y guardado
 $$('[data-section="Cuerpo"] .btn').find((b) => b.textContent === 'Registrar medidas').click();

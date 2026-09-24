@@ -40,9 +40,14 @@ export function open() {
         db.createObjectStore('measurements', { keyPath: 'id' }).createIndex('date', 'date');
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // Otra pestaña pide una versión más nueva: cerramos para no bloquearla y reabrimos en la próxima llamada.
+      db.onversionchange = () => { db.close(); dbp = null; };
+      resolve(db);
+    };
     req.onerror = () => { dbp = null; reject(req.error || new Error('No se pudo abrir la base')); };
-    req.onblocked = () => reject(new Error('Base bloqueada por otra pestaña'));
+    req.onblocked = () => { dbp = null; reject(new Error('Base bloqueada por otra pestaña')); };
   });
   return dbp;
 }

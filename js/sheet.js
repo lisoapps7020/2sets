@@ -18,7 +18,10 @@ function bestBodyweightReps(sessions, exerciseId) {
 
 export function characterSheet({ sessions = [], bodyweightRows = [], measurements = [], profile = {}, bandsById = {}, todayISO }) {
   const done = sessions.filter((s) => s.status === 'done');
-  const rows = [...bodyweightRows].filter((r) => Number.isFinite(Number(r.kg))).sort((a, b) => a.date.localeCompare(b.date));
+  const rows = bodyweightRows
+    .map((r) => ({ ...r, kg: Number(r.kg) }))
+    .filter((r) => Number.isFinite(r.kg) && r.kg > 0 && typeof r.date === 'string')
+    .sort((a, b) => a.date.localeCompare(b.date));
   const bwFor = (date) => {
     let best = null;
     for (const r of rows) if (r.date <= date) best = r;

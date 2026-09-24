@@ -125,3 +125,107 @@ export function suggestSecond(exerciseId, lastBlock, opts = {}) {
 export function nextDay(last) {
   return last?.day === 'pull' ? 'push' : 'pull';
 }
+
+// ---------- PRs, hitos y series ----------
+
+export function sessionSets(session) {
+  const out = [];
+  const b = session?.blocks || {};
+  for (const key of ['main', 'second']) {
+    const block = b[key];
+    if (!block?.exerciseId) continue;
+    (block.sets || []).forEach((set, slot) => out.push({ exerciseId: block.exerciseId, slot, set }));
+  }
+  return out;
+}
+
+const isDone = (s) => s?.status === 'done';
+const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+const countable = (set) => !!set && set.done !== false && num(set.reps) > 0;
+
+function bodyweightOf(session, opts) {
+  if (session.bodyweightKg !== null && session.bodyweightKg !== undefined) return num(session.bodyweightKg);
+  const bw = opts.bodyweightFor?.(session.date);
+  return num(bw);
+}
+
+function metricsOf(set, bw, bandsById) {
+  const total = totalLoad(set, bw, bandsById);
+  const reps = num(set.reps);
+  return {
+    maxAdded: set.load?.mode === 'weight' ? num(set.load.kg) : null,
+    maxTotal: total,
+    maxE1RM: epley1RM(total, reps),
+    maxBwReps: set.load?.mode === 'bodyweight' ? reps : null,
+  };
+}
+
+const EMPTY_SLOT = () => ({ maxAdded: null, maxTotal: null, maxE1RM: null, maxBwReps: null });
+
+export function computePRs(sessions, opts = {}) {
+  const prs = {};
+  const bands = opts.bandsById || {};
+  for (const s of [...(sessions || [])].filter(isDone).sort(byDate)) {
+    const bw = bodyweightOf(s, opts);
+    for (const { exerciseId, slot, set } of sessionSets(s)) {
+      if (!countable(set)) continue;
+      const m = metricsOf(set, bw, bands);
+      const ex = (prs[exerciseId] ||= {});
+      const slotPrs = (ex[slot] ||= EMPTY_SLOT());
+      for (const [type, value] of Object.entries(m)) {
+        if (value === null || value === undefined) continue;
+        if (!slotPrs[type] || value > slotPrs[type].value) slotPrs[type] = { value, date: s.date };
+      }
+    }
+  }
+  return prs;
+}
+
+export function detectNewPRs(prsBefore, session, opts = {}) {
+  const out = [];
+  const bw = bodyweightOf(session, opts);
+  const bands = opts.bandsById || {};
+  for (const { exerciseId, slot, set } of sessionSets(session)) {
+    if (!countable(set)) continue;
+    const m = metricsOf(set, bw, bands);
+    const prev = prsBefore?.[exerciseId]?.[slot] || {};
+    for (const [type, value] of Object.entries(m)) {
+      if (value === null || value === undefined || value <= 0) continue;
+      if (!prev[type] || value > prev[type].value) out.push({ exerciseId, slot, type, value, prev: prev[type]?.value ?? null });
+    }
+  }
+  return out;
+}
+
+export function milestones(sessions) {
+  const out = {};
+  for (const [ex, targetKg] of Object.entries(MILESTONES)) {
+    let bestKg = 0;
+    for (const s of (sessions || []).filter(isDone)) {
+      const b = s.blocks?.main;
+      if (b?.exerciseId !== ex) continue;
+      const set = b.sets?.[0];
+      if (set?.load?.mode === 'weight' && num(set.reps) >= 10) bestKg = Math.max(bestKg, num(set.load.kg));
+    }
+    out[ex] = { targetKg, bestKg, pct: Math.min(100, Math.round((bestKg / targetKg) * 100)) };
+  }
+  return out;
+}
+
+export function seriesFor(sessions, exerciseId, slot, metric, opts = {}) {
+  const pts = [];
+  const bands = opts.bandsById || {};
+  for (const s of [...(sessions || [])].filter(isDone).sort(byDate)) {
+    const hit = sessionSets(s).find((x) => x.exerciseId === exerciseId && x.slot === slot);
+    if (!hit || !countable(hit.set)) continue;
+    const bw = bodyweightOf(s, opts);
+    const total = totalLoad(hit.set, bw, bands);
+    const reps = num(hit.set.reps);
+    const value = metric === 'added' ? addedKg(hit.set.load, bands)
+      : metric === 'total' ? total
+      : metric === 'e1rm' ? epley1RM(total, reps)
+      : reps;
+    pts.push({ date: s.date, value });
+  }
+  return pts;
+}

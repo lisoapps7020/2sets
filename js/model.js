@@ -24,6 +24,8 @@ export function roundDown2_5(kg) {
   return Math.floor(n / 2.5) * 2.5;
 }
 
+const kgText = (n) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10).replace('.', ','));
+
 function num(x) {
   const n = Number(x);
   return Number.isFinite(n) ? n : 0;
@@ -76,11 +78,11 @@ function suggestSlot(s, target, inc) {
   const bandId = s.load?.bandId ?? null;
   const reps = num(s.reps);
   if (mode === 'weight') {
-    if (reps >= target) return { load: { mode: 'weight', kg: kg + inc, bandId: null }, hint: `Llegaste a ${reps}. Subí a ${kg + inc} kg.` };
+    if (reps >= target) return { load: { mode: 'weight', kg: kg + inc, bandId: null }, hint: `Llegaste a ${reps}. Subí a ${kgText(kg + inc)} kg.` };
     return { load: { mode: 'weight', kg, bandId: null }, hint: `Mismo peso: buscá ${target} reps.` };
   }
   if (mode === 'bodyweight') {
-    if (reps >= target) return { load: { mode: 'weight', kg: inc, bandId: null }, hint: `Pasá a lastre: +${inc} kg.` };
+    if (reps >= target) return { load: { mode: 'weight', kg: inc, bandId: null }, hint: `Pasá a lastre: +${kgText(inc)} kg.` };
     return { load: { mode: 'bodyweight', kg: 0, bandId: null }, hint: `Peso corporal: buscá ${target} reps.` };
   }
   if (reps >= target) return { load: { mode: 'band', kg: 0, bandId }, hint: 'Probá una banda más liviana o peso corporal.' };
@@ -96,7 +98,7 @@ export function suggestMain(exerciseId, lastBlock, opts = {}) {
   const slot2HasWeightHistory = usable(sets[1]) && sets[1].load?.mode === 'weight';
   if (s1.load.mode === 'weight' && !slot2HasWeightHistory) {
     const seed = Math.min(Math.max(2.5, roundDown2_5(s1.load.kg * 0.8)), s1.load.kg);
-    s2 = { load: { mode: 'weight', kg: seed, bandId: null }, hint: `Serie 2 al 80% de la serie 1: ${seed} kg. Buscá ${t2} reps.` };
+    s2 = { load: { mode: 'weight', kg: seed, bandId: null }, hint: `Serie 2 al 80% de la serie 1: ${kgText(seed)} kg. Buscá ${t2} reps.` };
   }
   const prev = opts.previousBlock?.sets?.[0];
   const last = sets[0];
@@ -117,8 +119,8 @@ export function suggestSecond(exerciseId, lastBlock, opts = {}) {
   const ref = { mode: sets[0].load?.mode || 'bodyweight', kg: num(sets[0].load?.kg), bandId: sets[0].load?.bandId ?? null };
   const allHi = sets.every((s) => num(s.reps) >= hi);
   if (!allHi) return { load: ref, hint: `Mantené la carga: buscá ${hi} en las dos series.` };
-  if (ref.mode === 'weight') return { load: { mode: 'weight', kg: ref.kg + inc, bandId: null }, hint: `Las dos series a ${hi}. Subí a ${ref.kg + inc} kg.` };
-  if (ref.mode === 'bodyweight') return { load: { mode: 'weight', kg: inc, bandId: null }, hint: `Pasá a lastre: +${inc} kg.` };
+  if (ref.mode === 'weight') return { load: { mode: 'weight', kg: ref.kg + inc, bandId: null }, hint: `Las dos series a ${hi}. Subí a ${kgText(ref.kg + inc)} kg.` };
+  if (ref.mode === 'bodyweight') return { load: { mode: 'weight', kg: inc, bandId: null }, hint: `Pasá a lastre: +${kgText(inc)} kg.` };
   return { load: ref, hint: 'Probá una banda más liviana o sin banda.' };
 }
 

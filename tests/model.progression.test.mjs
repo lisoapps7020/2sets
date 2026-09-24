@@ -106,3 +106,11 @@ test('nextDay alternates, defaults to pull', () => {
   assert.equal(nextDay({ day: 'pull' }), 'push');
   assert.equal(nextDay({ day: 'push' }), 'pull');
 });
+
+test('hints format decimals with comma', () => {
+  const s = suggestSecond('decline_pushups', { sets: [BW(15), BW(16)] });
+  assert.match(s.hint, /2,5 kg/);
+  const m = suggestMain('dips', { exerciseId: 'dips', sets: [W(30, 10), W(20, 14)] }, { incrementKg: 2.5 });
+  assert.match(m.sets[0].hint, /32,5 kg/);
+  assert.doesNotMatch(m.sets[0].hint, /32\.5/);
+});

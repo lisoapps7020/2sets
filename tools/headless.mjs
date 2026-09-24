@@ -65,6 +65,10 @@ ws.addEventListener('message', (ev) => {
     exceptions.push(d.exception?.description || d.text || JSON.stringify(d));
   }
   if (msg.method === 'Log.entryAdded' && msg.params.entry.level === 'error') consoleLines.push(`[log:error] ${msg.params.entry.text} ${msg.params.entry.url || ''}`);
+  if (msg.method === 'Page.javascriptDialogOpening') {
+    consoleLines.push(`[dialog:${msg.params.type}] ${msg.params.message}`);
+    ws.send(JSON.stringify({ id: ++id, method: 'Page.handleJavaScriptDialog', params: { accept: true } }));
+  }
 });
 const send = (method, params = {}) => new Promise((resolve) => { const i = ++id; pending.set(i, resolve); ws.send(JSON.stringify({ id: i, method, params })); });
 const evaluate = async (expression) => {
@@ -86,8 +90,15 @@ while (Date.now() - start < timeout) {
   await new Promise((r) => setTimeout(r, 200));
 }
 
+const scriptPath = opt('--script', null);
 let value;
-try { value = await evaluate(evalExpr); } catch (e) { exceptions.push(`eval: ${e.message}`); }
+if (scriptPath) {
+  const { readFileSync } = await import('node:fs');
+  const body = readFileSync(scriptPath, 'utf8');
+  try { value = await evaluate(`(async () => { ${body} })()`); } catch (e) { exceptions.push(`script: ${e.message}`); }
+} else {
+  try { value = await evaluate(evalExpr); } catch (e) { exceptions.push(`eval: ${e.message}`); }
+}
 const shot = opt('--shot', null);
 if (shot) {
   const { writeFileSync } = await import('node:fs');

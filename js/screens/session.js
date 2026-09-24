@@ -1,5 +1,245 @@
-import { el } from '../ui.js';
+import { el, fmtDate, todayISO, loadText, toast, confirmDialog, debounce, prText, fmtNum } from '../ui.js';
+import { getProfile, listSessions, activeSession, latestBodyweight, bandsById, listExtras, ensureSeeds, saveSession, deleteSession } from '../db.js';
+import { nextDay, suggestMain, suggestSecond, MAIN_BY_DAY, SECOND_BY_DAY, EXERCISES, computePRs, detectNewPRs, makeSet } from '../model.js';
+import { newSession, BLOCK_META, WARMUP_ITEMS, sessionDuration } from '../templates.js';
+import { setRow } from '../setrow.js';
+import { startRest } from '../timer.js';
 
-export function render(container) {
-  container.append(el('p', { class: 'empty' }, 'Pronto: session'));
+let c = null;
+let navigate = () => {};
+let profile = null;
+let bands = {};
+let extras = [];
+let doneSessions = [];
+let session = null;
+let bwLatest = null;
+
+const persist = debounce(() => {
+  if (!session) return;
+  saveSession(session).catch(() => toast('No se pudo guardar', 'error'));
+}, 300);
+
+export async function render(container, ctx) {
+  c = container;
+  navigate = ctx.navigate;
+  await ensureSeeds();
+  [profile, bands, extras, bwLatest] = await Promise.all([getProfile(), bandsById(), listExtras(), latestBodyweight()]);
+  doneSessions = (await listSessions()).filter((s) => s.status === 'done');
+  session = await activeSession();
+  if (session) return workout();
+  const wanted = ctx.query?.day === 'push' || ctx.query?.day === 'pull' ? ctx.query.day : null;
+  if (wanted) return start(wanted);
+  chooser(nextDay(doneSessions[0]));
+}
+
+export function destroy() {
+  persist.flush?.();
+}
+
+function lastBlock(kind, exerciseId) {
+  const s = doneSessions.find((x) => x.blocks?.[kind]?.exerciseId === exerciseId);
+  return s?.blocks[kind] || null;
+}
+function prevBlock(kind, exerciseId) {
+  const list = doneSessions.filter((x) => x.blocks?.[kind]?.exerciseId === exerciseId);
+  return list[1]?.blocks[kind] || null;
+}
+
+function chooser(suggested) {
+  c.replaceChildren(
+    el('h1', {}, 'Entrenar'),
+    el('p', { class: 'muted' }, `Te sugiero ${suggested.toUpperCase()}. Elegí el día.`),
+    el('div', { class: 'daypick' },
+      ...['push', 'pull'].map((day) => el('button', {
+        type: 'button',
+        class: 'daycard' + (day === suggested ? ' suggested' : ''),
+        onclick: () => start(day),
+      },
+      el('b', {}, day.toUpperCase()),
+      el('span', { class: 'muted small' }, EXERCISES[MAIN_BY_DAY[day]].name),
+      el('span', { class: 'muted small' }, EXERCISES[SECOND_BY_DAY[day]].name),
+      day === suggested ? el('span', { class: 'chip chip-gold' }, 'Sugerido') : null,
+      )),
+    ),
+  );
+}
+
+async function start(day) {
+  const mainEx = MAIN_BY_DAY[day];
+  const secondEx = SECOND_BY_DAY[day];
+  const mainSuggestion = suggestMain(mainEx, lastBlock('main', mainEx), {
+    incrementKg: profile.incrementKg[mainEx], previousBlock: prevBlock('main', mainEx), bandsById: bands,
+  });
+  const secondSuggestion = suggestSecond(secondEx, lastBlock('second', secondEx), { incrementKg: profile.incrementKg.second });
+  session = newSession({ day, dateISO: todayISO(), bodyweightKg: bwLatest?.kg ?? null, mainSuggestion, secondSuggestion });
+  try {
+    await saveSession(session);
+  } catch {
+    toast('No se pudo guardar la sesión', 'error');
+  }
+  if (mainSuggestion.switchTo2_5) toast('Con 5 kg cayeron las reps: considerá pasar a 2,5 kg en Ajustes');
+  workout();
+}
+
+function blockCard(key, ...children) {
+  const meta = BLOCK_META[key];
+  return el('section', { class: 'card', dataset: { block: key } },
+    el('div', { class: 'card-head' },
+      el('h2', { class: 'card-title' }, meta.title),
+      el('span', { class: 'label-caps' }, meta.subtitle),
+    ),
+    ...children,
+  );
+}
+
+function lastText(block, i) {
+  const s = block?.sets?.[i];
+  if (!s || !(Number(s.reps) > 0)) return null;
+  return `${loadText(s.load, bands)} × ${fmtNum(s.reps)}`;
+}
+
+function workout() {
+  const b = session.blocks;
+  const mainEx = b.main.exerciseId;
+  const secondEx = b.second.exerciseId;
+  const [t1, t2] = EXERCISES[mainEx].targets;
+  const [lo, hi] = EXERCISES[secondEx].range;
+  const lastMain = lastBlock('main', mainEx);
+  const lastSecond = lastBlock('second', secondEx);
+  const restMain = () => profile.restMainSec;
+  const restApproach = () => profile.restApproachSec;
+
+  const header = el('div', { class: 'row-between' },
+    el('div', {},
+      el('div', { class: 'row' }, el('span', { class: `chip chip-${session.day}` }, session.day), el('span', { class: 'muted small' }, fmtDate(session.date))),
+      el('h1', {}, EXERCISES[mainEx].name),
+    ),
+    el('button', { type: 'button', class: 'link', onclick: discard }, 'Descartar'),
+  );
+
+  const warmup = blockCard('warmup',
+    el('div', { class: 'list' }, ...WARMUP_ITEMS.map((name, i) => el('label', { class: 'check' },
+      el('input', { type: 'checkbox', checked: !!b.warmup.items[i], onchange: (e) => { b.warmup.items[i] = e.target.checked; persist(); } }),
+      el('span', {}, name),
+    ))),
+  );
+
+  const approach = blockCard('approach',
+    ...b.approach.sets.map((set, i) => setRow({
+      set, bands, label: `Aprox ${i + 1} · 5 reps`, onChange: persist,
+      onDone: () => startRest(restApproach(), { label: `Aproximación ${i + 1} hecha` }),
+    })),
+  );
+
+  const main = blockCard('main',
+    el('p', { class: 'muted small' }, `${EXERCISES[mainEx].name}. Max out en las dos. Meta ${t1} y ${t2} reps.`),
+    ...b.main.sets.map((set, i) => setRow({
+      set, bands, label: `Serie ${i + 1} · meta ${i === 0 ? t1 : t2}`, last: lastText(lastMain, i), onChange: persist,
+      onDone: () => startRest(restMain(), { label: `Serie ${i + 1} hecha` }),
+    })),
+  );
+
+  const second = blockCard('second',
+    el('p', { class: 'muted small' }, `${EXERCISES[secondEx].name}. ${lo} a ${hi} reps al fallo.`),
+    ...b.second.sets.map((set, i) => setRow({
+      set, bands, label: `Serie ${i + 1} · ${lo} a ${hi}`, last: lastText(lastSecond, i), onChange: persist,
+      onDone: () => startRest(restMain(), { label: `${EXERCISES[secondEx].short} ${i + 1} hecha` }),
+    })),
+  );
+
+  const extraHost = el('div', { class: 'list' });
+  const drawExtras = () => {
+    extraHost.replaceChildren(...b.extra.map((item, idx) => {
+      const ex = extras.find((e) => e.id === item.exerciseId);
+      return el('div', { class: 'extra-item' },
+        el('div', { class: 'row-between' },
+          el('h3', {}, ex?.name || 'Complementario'),
+          el('button', { type: 'button', class: 'link', onclick: () => { b.extra.splice(idx, 1); persist(); drawExtras(); } }, 'Quitar'),
+        ),
+        ...item.sets.map((set, i) => setRow({
+          set, bands, label: `Serie ${i + 1}`, onChange: persist,
+          onDone: () => startRest(restApproach(), { label: `${ex?.name || 'Extra'} ${i + 1} hecha` }),
+        })),
+        el('button', { type: 'button', class: 'btn btn-ghost btn-sm', onclick: () => { item.sets.push(makeSet(item.sets[item.sets.length - 1]?.load)); persist(); drawExtras(); } }, '+ serie'),
+      );
+    }));
+  };
+  drawExtras();
+  const available = extras.filter((e) => !e.archived && (e.day === 'any' || e.day === session.day));
+  const picker = el('select', { class: 'select', 'aria-label': 'Agregar complementario' },
+    el('option', { value: '' }, '+ Agregar complementario'),
+    ...available.map((e) => el('option', { value: e.id }, e.name)),
+  );
+  picker.addEventListener('change', () => {
+    if (!picker.value) return;
+    b.extra.push({ exerciseId: picker.value, sets: [makeSet()] });
+    picker.value = '';
+    persist();
+    drawExtras();
+  });
+  const extra = blockCard('extra', extraHost, available.length ? picker : el('p', { class: 'muted small' }, 'No hay complementarios para este día. Agregalos en Ajustes.'));
+
+  const footer = el('div', { class: 'btn-row' },
+    el('button', { type: 'button', class: 'btn btn-primary btn-wide', onclick: finish }, 'Terminar sesión'),
+  );
+
+  c.replaceChildren(header, warmup, approach, main, second, extra, footer);
+}
+
+async function discard() {
+  if (!(await confirmDialog('¿Descartar esta sesión? Se borra lo que cargaste.'))) return;
+  try {
+    await deleteSession(session.id);
+    session = null;
+    chooser(nextDay(doneSessions[0]));
+  } catch {
+    toast('No se pudo descartar', 'error');
+  }
+}
+
+async function finish() {
+  const anyDone = session.blocks.main.sets.some((s) => s.done && s.reps > 0) || session.blocks.second.sets.some((s) => s.done && s.reps > 0);
+  const msg = anyDone ? '¿Terminar y guardar la sesión?' : 'No marcaste ninguna serie del principal. ¿Guardar igual?';
+  if (!(await confirmDialog(msg))) return;
+  session.status = 'done';
+  session.finishedAt = Date.now();
+  const opts = { bandsById: bands, bodyweightFor: () => session.bodyweightKg ?? bwLatest?.kg ?? null };
+  const before = computePRs(doneSessions, opts);
+  const news = detectNewPRs(before, session, opts);
+  try {
+    await saveSession(session);
+  } catch {
+    toast('No se pudo guardar la sesión', 'error');
+    return;
+  }
+  summary(news);
+}
+
+function summary(news) {
+  const mainEx = session.blocks.main.exerciseId;
+  const secondEx = session.blocks.second.exerciseId;
+  const next = suggestMain(mainEx, session.blocks.main, { incrementKg: profile.incrementKg[mainEx], previousBlock: lastBlock('main', mainEx), bandsById: bands });
+  const nextSecond = suggestSecond(secondEx, session.blocks.second, { incrementKg: profile.incrementKg.second });
+  const dur = sessionDuration(session);
+  const saved = session;
+  session = null;
+  c.replaceChildren(
+    el('section', { class: 'card card-dark' },
+      el('p', { class: 'label-caps' }, 'Sesión guardada'),
+      el('h2', { class: 'card-title' }, `${saved.day.toUpperCase()} · ${fmtDate(saved.date, { weekday: false })}`),
+      el('p', { class: 'muted' }, dur !== null ? `${dur} minutos` : ''),
+    ),
+    el('section', { class: 'card' },
+      el('p', { class: 'label-caps gold' }, news.length ? `${news.length} PR${news.length > 1 ? 's' : ''} nuevo${news.length > 1 ? 's' : ''}` : 'Sin PRs esta vez'),
+      news.length ? el('ul', { class: 'list', style: { margin: 0, paddingLeft: '18px' } }, ...news.map((n) => el('li', {}, `${prText(n)}${n.prev !== null ? ` (antes ${fmtNum(n.prev)})` : ''}`))) : el('p', { class: 'muted small' }, 'Seguí acumulando. El método paga con constancia.'),
+    ),
+    el('section', { class: 'card' },
+      el('p', { class: 'label-caps' }, 'Próxima vez'),
+      el('div', {}, el('b', {}, 'Serie 1 · '), loadText(next.sets[0].load, bands), el('span', { class: 'muted small' }, ` · ${next.sets[0].hint}`)),
+      el('div', {}, el('b', {}, 'Serie 2 · '), loadText(next.sets[1].load, bands), el('span', { class: 'muted small' }, ` · ${next.sets[1].hint}`)),
+      el('div', {}, el('b', {}, `${EXERCISES[secondEx].short} · `), loadText(nextSecond.load, bands), el('span', { class: 'muted small' }, ` · ${nextSecond.hint}`)),
+      next.switchTo2_5 ? el('p', { class: 'small', style: { color: 'var(--primary)' } }, 'Con 5 kg cayeron las reps: considerá pasar a 2,5 kg en Ajustes.') : null,
+    ),
+    el('button', { type: 'button', class: 'btn btn-primary btn-wide', onclick: () => navigate('#/inicio') }, 'Volver al inicio'),
+  );
 }

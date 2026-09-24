@@ -131,4 +131,6 @@ export async function importAll(d) {
     await clear(s);
     for (const row of data[s]) await put(s, row);
   }
+  // Un backup es la verdad completa: no volver a sembrar bandas ni complementarios encima.
+  if (!data.settings.some((r) => r?.key === 'seeded')) await put('settings', { key: 'seeded', value: true });
 }

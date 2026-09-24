@@ -231,3 +231,27 @@ export function seriesFor(sessions, exerciseId, slot, metric, opts = {}) {
   }
   return pts;
 }
+
+// ---------- Reglas chicas de UI ----------
+
+const DAY_MS = 86400000;
+function utcDay(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  if (!m) return NaN;
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+// Pedir el peso corporal si nunca se cargó o si el último dato tiene más de 7 días.
+export function needsBodyweightPrompt(latest, todayISO) {
+  const last = utcDay(latest?.date);
+  const today = utcDay(todayISO);
+  if (!Number.isFinite(last) || !Number.isFinite(today)) return true;
+  return (today - last) / DAY_MS > 7;
+}
+
+// Devuelve un bandId válido: el mismo si existe, la primera banda si no, null si no hay bandas.
+export function resolveBandId(bandId, bandsById = {}) {
+  if (bandId && bandsById[bandId]) return bandId;
+  const first = Object.keys(bandsById)[0];
+  return first || null;
+}

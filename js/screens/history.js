@@ -99,6 +99,12 @@ function detail(s, editing) {
       el('h3', {}, item.name || 'Complementario'),
       ...rows(item.sets || [], (i) => `Serie ${i + 1}`),
     ))) : null,
+    (editing || s.notes) ? el('section', { class: 'card', dataset: { block: 'notes' } },
+      el('p', { class: 'label-caps' }, 'Notas'),
+      editing
+        ? el('textarea', { class: 'notes', dataset: { notes: '' }, oninput: (e) => { s.notes = e.target.value; } }, s.notes || '')
+        : el('p', { class: 'small', style: { fontStyle: 'italic' } }, s.notes),
+    ) : null,
     actions,
   );
 }

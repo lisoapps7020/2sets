@@ -19,6 +19,19 @@ res.blocks = $$('[data-block]').map((x) => x.dataset.block);
 res.title = $('#screen h1')?.textContent;
 res.blockTitles = $$('[data-block] .card-title').map((x) => x.textContent);
 
+// Sin peso corporal cargado: aparece el pedido; guardar 80 lo cierra y lo aplica a la sesión
+res.bwPromptShown = !!$('[data-bw-prompt]');
+setInput($('[data-bw-prompt] input'), 80);
+$('[data-bw-prompt] .btn').click();
+await sleep(400);
+res.bwPromptGone = !$('[data-bw-prompt]');
+res.bwSaved = (await (await import('../../js/db.js')).latestBodyweight())?.kg;
+
+// Notas
+const ta = $('[data-notes]');
+ta.value = 'codo molesto';
+ta.dispatchEvent(new Event('input', { bubbles: true }));
+
 $('[data-block=warmup] input[type=checkbox]').click();
 
 // Aproximación 1 con banda
@@ -74,6 +87,8 @@ const db = await import('../../js/db.js');
 const active = await db.activeSession();
 res.persisted = {
   status: active?.status,
+  notes: active?.notes,
+  bodyweightKg: active?.bodyweightKg,
   warmup0: active?.blocks.warmup.items[0],
   approachMode: active?.blocks.approach.sets[0].load.mode,
   main0: active?.blocks.main.sets[0],
@@ -105,7 +120,7 @@ res.extraName = doneSession.blocks.extra[0]?.name;
 // Empezar desde Inicio con ?day= limpia la URL para que una recarga no re-arranque
 location.hash = '#/entrenar?day=push';
 await sleep(900);
-res.queryStart = { title: $('#screen h1')?.textContent, hash: location.hash };
+res.queryStart = { title: $('#screen h1')?.textContent, hash: location.hash, bwPromptShown: !!$('[data-bw-prompt]') };
 // Descartar justo después de un cambio: no debe resucitar la sesión
 setInput($$('[data-block=main] .setrow')[0].querySelector('.stepper-big input'), 3);
 $$('#screen .link').find((b) => b.textContent === 'Descartar').click();

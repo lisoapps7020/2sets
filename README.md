@@ -10,6 +10,7 @@ App web instalable (PWA) para registrar sesiones de calistenia con lastre siguie
 - Sugerencia de la próxima sesión con las reglas del método: 10 y 15 reps en fondos, 8 y 12 en dominadas, incrementos de 5 o 2,5 kg.
 - Historial editable, gráficos de lastre, carga total, 1RM estimado y reps, PRs e hitos.
 - Carga de sesiones pasadas desde Progreso, para pasar lo anotado en papel y ver la curva desde el día 1. Quedan marcadas como "papel" en el Historial.
+- Notas por sesión, y pedido del peso corporal al arrancar si hace más de una semana que no lo cargás.
 - Export e import de backup en JSON.
 
 ## Correr localmente

@@ -38,6 +38,9 @@ try {
   let rejected = false;
   try { await db.importAll({ app: 'nope' }); } catch (e) { rejected = e.message; }
   res.rejectedImport = rejected;
+  await db.importAll({ app: '2sets', schemaVersion: 1, settings: [], bodyweight: [], bands: [], extras: [], sessions: [] });
+  await db.ensureSeeds();
+  res.noReseedAfterImport = (await db.getAll('bands')).length === 0 && (await db.getAll('extras')).length === 0;
   res.ok = true;
 } catch (e) {
   res.ok = false; res.error = String(e && e.stack || e);

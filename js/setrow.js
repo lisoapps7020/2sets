@@ -1,5 +1,6 @@
 // Fila de una serie: modo de carga, kilos o banda, reps y botón Listo.
 import { el } from './ui.js';
+import { resolveBandId } from './model.js';
 
 export function stepper(value, step, onSet, unit = '', big = false) {
   const input = el('input', { type: 'number', inputmode: 'decimal', step: String(step), min: '0', value: String(value ?? 0), 'aria-label': unit || 'valor' });
@@ -20,6 +21,10 @@ export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDo
   const row = el('div', { class: 'setrow' + (set.done && showDone ? ' done' : '') });
   const rerender = () => row.replaceWith(setRow({ set, bands, last, onChange, onDone, label, showDone }));
   const bandList = Object.values(bands);
+  if (set.load.mode === 'band') {
+    const resolved = resolveBandId(set.load.bandId, bands);
+    if (resolved !== set.load.bandId) { set.load.bandId = resolved; onChange(); }
+  }
 
   const seg = el('div', { class: 'seg', role: 'group', 'aria-label': 'Modo de carga' },
     ...MODES.map(([m, t]) => el('button', {
@@ -67,7 +72,10 @@ export function setRow({ set, bands = {}, last = null, onChange = () => {}, onDo
       last ? el('span', { class: 'muted small' }, `Última: ${last}`) : null,
     ),
     seg,
-    el('div', { class: 'setrow-body' }, el('div', { class: 'setrow-load' }, load), reps, showDone ? doneBtn : null),
+    el('div', { class: 'setrow-body' },
+      el('div', { class: 'setrow-load' }, load),
+      el('div', { class: 'setrow-act' }, reps, showDone ? doneBtn : null),
+    ),
   );
   return row;
 }

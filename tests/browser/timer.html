@@ -46,6 +46,7 @@ try {
   res.titleDone = document.getElementById('rest-title').textContent;
   res.tZero = time();
   res.storedAfterFire = localStorage.getItem('restEndAt');
+  res.actionsHiddenWhenDone = getComputedStyle(document.querySelector('.rest-actions')).display === 'none';
   res.ok = true;
 } catch (e) { res.ok = false; res.error = String(e && e.stack || e); }
 out.textContent = 'RESULT ' + JSON.stringify(res);

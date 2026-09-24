@@ -1,7 +1,8 @@
 import { el, fmtDate, todayISO, loadText, toast, confirmDialog, debounce, prText, fmtNum } from '../ui.js';
 import { getProfile, listSessions, activeSession, latestBodyweight, bandsById, listExtras, ensureSeeds, saveSession, deleteSession } from '../db.js';
-import { nextDay, suggestMain, suggestSecond, MAIN_BY_DAY, SECOND_BY_DAY, EXERCISES, computePRs, detectNewPRs, makeSet } from '../model.js';
-import { newSession, BLOCK_META, WARMUP_ITEMS, sessionDuration } from '../templates.js';
+import { nextDay, suggestMain, suggestSecond, MAIN_BY_DAY, SECOND_BY_DAY, EXERCISES, computePRs, detectNewPRs, makeSet, needsBodyweightPrompt } from '../model.js';
+import { newSession, BLOCK_META, WARMUP_ITEMS, sessionDuration, uid } from '../templates.js';
+import { put } from '../db.js';
 import { setRow } from '../setrow.js';
 import { startRest } from '../timer.js';
 
@@ -13,6 +14,31 @@ let extras = [];
 let doneSessions = [];
 let session = null;
 let bwLatest = null;
+let bwPromptDismissedFor = null;
+
+function bodyweightPrompt() {
+  if (!needsBodyweightPrompt(bwLatest, todayISO()) || bwPromptDismissedFor === session.id) return null;
+  const input = el('input', { class: 'input', type: 'number', inputmode: 'decimal', step: '0.1', placeholder: 'kg', 'aria-label': 'Peso corporal de hoy' });
+  const card = el('section', { class: 'card', dataset: { bwPrompt: '' } },
+    el('p', { class: 'label-caps gold' }, bwLatest ? 'Hace más de una semana que no cargás tu peso' : 'Peso corporal'),
+    el('p', { class: 'muted small' }, 'Con el peso de hoy la carga total y el 1RM salen bien. Podés omitirlo.'),
+    el('div', { class: 'row' },
+      input,
+      el('button', { type: 'button', class: 'btn btn-primary btn-sm', onclick: async () => {
+        const kg = Number(input.value);
+        if (!(kg > 20 && kg < 300)) { toast('Ingresá un peso válido', 'error'); return; }
+        const row = { id: uid('bw'), date: todayISO(), kg: Math.round(kg * 10) / 10 };
+        try { await put('bodyweight', row); } catch { toast('No se pudo guardar', 'error'); return; }
+        bwLatest = row;
+        session.bodyweightKg = row.kg;
+        persist();
+        card.remove();
+      } }, 'Guardar'),
+      el('button', { type: 'button', class: 'link', onclick: () => { bwPromptDismissedFor = session.id; card.remove(); } }, 'Omitir'),
+    ),
+  );
+  return card;
+}
 
 const persist = debounce(() => {
   if (!session) return;
@@ -185,11 +211,16 @@ function workout() {
   });
   const extra = blockCard('extra', extraHost, available.length ? picker : el('p', { class: 'muted small' }, 'No hay complementarios para este día. Agregalos en Ajustes.'));
 
+  const notes = el('section', { class: 'card' },
+    el('p', { class: 'label-caps' }, 'Notas'),
+    el('textarea', { class: 'notes', placeholder: 'Cómo dormiste, molestias, energía…', dataset: { notes: '' }, oninput: (e) => { session.notes = e.target.value; persist(); } }, session.notes || ''),
+  );
+
   const footer = el('div', { class: 'btn-row' },
     el('button', { type: 'button', class: 'btn btn-primary btn-wide', onclick: finish }, 'Terminar sesión'),
   );
 
-  c.replaceChildren(header, warmup, approach, main, second, extra, footer);
+  c.replaceChildren(header, bodyweightPrompt(), warmup, approach, main, second, extra, notes, footer);
 }
 
 async function discard() {
@@ -238,8 +269,10 @@ function summary(news) {
       el('p', { class: 'label-caps' }, 'Sesión guardada'),
       el('h2', { class: 'card-title' }, `${saved.day.toUpperCase()} · ${fmtDate(saved.date, { weekday: false })}`),
       el('p', { class: 'muted' }, dur !== null ? `${dur} minutos` : ''),
+      saved.notes ? el('p', { class: 'small', style: { fontStyle: 'italic' } }, saved.notes) : null,
     ),
-    el('section', { class: 'card' },
+    el('section', { class: 'card' + (news.length ? ' card-pr' : '') },
+      news.length ? el('h2', { class: 'card-title' }, '¡Nuevo récord!') : null,
       el('p', { class: 'label-caps gold' }, news.length ? `${news.length} PR${news.length > 1 ? 's' : ''} nuevo${news.length > 1 ? 's' : ''}` : 'Sin PRs esta vez'),
       news.length ? el('ul', { class: 'list', style: { margin: 0, paddingLeft: '18px' } }, ...news.map((n) => el('li', {}, `${prText(n)}${n.prev !== null ? ` (antes ${fmtNum(n.prev)})` : ''}`))) : el('p', { class: 'muted small' }, 'Seguí acumulando. El método paga con constancia.'),
     ),

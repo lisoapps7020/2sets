@@ -1,5 +1,5 @@
 // Service worker: cache del app shell para uso offline y notificaciones del descanso.
-const VERSION = 'v1.1.0';
+const VERSION = 'v1.2.0';
 const CACHE = `2sets-${VERSION}`;
 const SHELL = [
   './', './index.html', './manifest.webmanifest',

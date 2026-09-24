@@ -11,7 +11,7 @@ const db = await import('../../js/db.js');
 const W = (kg, reps) => ({ load: { mode: 'weight', kg, bandId: null }, reps, halfReps: 0, failedReps: 0, toFailure: true, done: true, source: 'manual' });
 const BW = (reps) => ({ load: { mode: 'bodyweight', kg: 0, bandId: null }, reps, halfReps: 0, failedReps: 0, toFailure: true, done: true, source: 'manual' });
 const mk = (id, date, day, main, second) => ({
-  id, date, day, status: 'done', startedAt: 1, finishedAt: 1 + 50 * 60000, bodyweightKg: 80, notes: '',
+  id, date, day, status: 'done', startedAt: 1, finishedAt: 1 + 50 * 60000, bodyweightKg: 80, notes: id === 'ses_c' ? 'dormí mal' : '',
   blocks: {
     warmup: { items: [true, true, false] },
     approach: { sets: [BW(5), BW(5)] },
@@ -38,14 +38,19 @@ res.detailTitle = $('#screen h1')?.textContent;
 res.detailBlocks = $$('[data-block]').map((x) => x.dataset.block);
 res.detailMain = $('[data-block=main]').innerText.replace(/\s+/g, ' ').trim();
 res.detailExtra = $('[data-block=extra]')?.innerText.replace(/\s+/g, ' ').trim();
+res.detailNotes = $('[data-block=notes]')?.innerText.replace(/\s+/g, ' ').trim();
 
 $$('#screen .btn').find((b) => b.textContent === 'Editar').click();
 await sleep(300);
 res.editRows = $$('[data-block=main] .setrow').length;
 setInput($$('[data-block=main] .setrow')[0].querySelector('.stepper-big input'), 11);
+const notesTa = $('[data-notes]');
+notesTa.value = 'dormí mal, pero fue';
+notesTa.dispatchEvent(new Event('input', { bubbles: true }));
 $$('#screen .btn').find((b) => b.textContent === 'Guardar').click();
 await sleep(500);
 res.savedReps = (await db.get('sessions', 'ses_c')).blocks.main.sets[0].reps;
+res.savedNotes = (await db.get('sessions', 'ses_c')).notes;
 res.afterSaveMain = $('[data-block=main]').innerText.replace(/\s+/g, ' ').trim();
 
 $$('#screen .btn').find((b) => b.textContent === 'Eliminar').click();

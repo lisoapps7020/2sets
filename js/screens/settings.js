@@ -5,6 +5,8 @@ import { uid } from '../templates.js';
 import { applyTheme } from '../app.js';
 import { measureForm } from '../measure.js';
 import { weeklyAvg, bodyFatOf } from '../body.js';
+import { testAlarm, requestNotifyPermission } from '../timer.js';
+import { APP_VERSION } from '../version.js';
 
 let c = null;
 let navigate = () => {};
@@ -113,9 +115,16 @@ async function draw() {
   // Descansos
   const restInput = (key, label) => field(label, el('input', { class: 'input', type: 'number', inputmode: 'decimal', min: '3', max: '7', step: '0.5', value: String(profile[key] / 60),
     onchange: (e) => { profile[key] = clampRest(Number(e.target.value) * 60); e.target.value = String(profile[key] / 60); persistProfile(); } }));
+  const notifState = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
   const descansos = card('Descansos',
     el('p', { class: 'muted small' }, 'Entre 3 y 7 minutos. Se pueden ajustar durante el descanso.'),
     el('div', { class: 'grid-2' }, restInput('restMainSec', 'Series principales (min)'), restInput('restApproachSec', 'Aproximación y extras (min)')),
+    el('p', { class: 'muted small' }, 'La alarma suena en loop hasta que toques "Listo, sigo". Probala acá con el volumen del teléfono como lo usás en el gimnasio.'),
+    el('div', { class: 'btn-row' },
+      el('button', { type: 'button', class: 'btn', dataset: { testAlarm: '' }, onclick: () => { if (!testAlarm()) toast('Este navegador no puede reproducir audio', 'error'); } }, 'Probar alarma'),
+      notifState === 'default' ? el('button', { type: 'button', class: 'btn btn-ghost', onclick: async () => { const r = await requestNotifyPermission(); toast(r === 'granted' ? 'Notificaciones activas' : 'Sin permiso de notificaciones'); draw(); } }, 'Activar notificaciones') : null,
+    ),
+    el('p', { class: 'muted small' }, notifState === 'granted' ? 'Notificaciones: activas.' : notifState === 'denied' ? 'Notificaciones: bloqueadas en el navegador para este sitio.' : notifState === 'unsupported' ? 'Notificaciones: no disponibles en este navegador (en iPhone, instalá la app en la pantalla de inicio).' : 'Notificaciones: todavía no activadas.'),
   );
 
   // Incrementos
@@ -206,6 +215,7 @@ async function draw() {
   // Método
   const metodo = card('El método',
     el('p', { class: 'small' }, 'Fondos: serie 1 al fallo cerca de 10 reps, serie 2 con 20 a 25% menos, meta 15. Dominadas: 8 y 12. Al llegar a la meta sumás el incremento la próxima; si no, mismo peso. Segundo ejercicio: 2 series de 12 a 15 al fallo, sumás carga cuando las dos llegan a 15. Descansos de 5 a 7 minutos entre series principales. Siempre max out, nunca apuntar a un número.'),
+    el('p', { class: 'muted small', dataset: { version: '' } }, `2 Sets versión ${APP_VERSION}`),
   );
 
   c.replaceChildren(el('h1', {}, 'Ajustes'), perfil, peso, cuerpo, descansos, incrementos, bandas, complementarios, tema, datos, metodo);

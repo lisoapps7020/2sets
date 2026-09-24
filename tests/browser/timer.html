@@ -26,8 +26,9 @@ try {
   localStorage.removeItem('restEndAt');
   startRest(200, { label: 'Prueba' });
   res.shownOnStart = o.hidden === false;
-  await sleep(150);
-  res.audioAfterStart = debugAudio(); // contexto creado en el toque, sonido programado 3 veces
+  await sleep(500);
+  res.audioAfterStart = debugAudio(); // contexto creado en el toque, sonido programado 3 veces, alarma activada pero en silencio
+  res.noSoundAtStart = !debugAudio().loopPlaying && !document.querySelector('audio')?.muted;
   res.statusText = document.getElementById('rest-status').textContent;
   res.label = document.getElementById('rest-label').textContent;
   res.t200 = time();
@@ -54,7 +55,11 @@ try {
   res.tZero = time();
   res.storedAfterFire = localStorage.getItem('restEndAt');
   res.actionsHiddenWhenDone = getComputedStyle(document.querySelector('.rest-actions')).display === 'none';
-  res.audioAfterFire = debugAudio(); // el disparo por timer no cancela los sonidos programados
+  res.audioAfterFire = debugAudio(); // loop del <audio> sonando hasta que el usuario cierra
+  await sleep(300);
+  res.loopPlayingAfterFire = debugAudio().loopPlaying;
+  document.getElementById('rest-skip').click();
+  res.loopStoppedAfterSkip = !debugAudio().loopPlaying;
   res.ok = true;
 } catch (e) { res.ok = false; res.error = String(e && e.stack || e); }
 out.textContent = 'RESULT ' + JSON.stringify(res);

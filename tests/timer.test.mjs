@@ -42,3 +42,19 @@ test('notifyStatus explains the notification state in Spanish', async () => {
   assert.match(notifyStatus('default', false, false).text, /pantalla de inicio/i);
   assert.equal(notifyStatus('default', false, true).key, 'unsupported');
 });
+
+test('alarmWavDataUri produces a WAV data URI with the beep pattern', async () => {
+  const { alarmWavDataUri } = await import('../js/timer.js');
+  const uri = alarmWavDataUri();
+  assert.match(uri, /^data:audio\/wav;base64,/);
+  const bytes = Buffer.from(uri.split(',')[1], 'base64');
+  assert.equal(bytes.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.equal(bytes.subarray(8, 12).toString('ascii'), 'WAVE');
+  const sampleRate = bytes.readUInt32LE(24);
+  const dataLen = bytes.readUInt32LE(40);
+  assert.equal(sampleRate, 22050);
+  assert.ok(dataLen / 2 / sampleRate > 2, 'más de 2 segundos de audio');
+  let peak = 0;
+  for (let i = 44; i < bytes.length; i += 2) peak = Math.max(peak, Math.abs(bytes.readInt16LE(i)));
+  assert.ok(peak > 20000, 'la alarma es fuerte, no silenciosa');
+});

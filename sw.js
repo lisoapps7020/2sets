@@ -1,5 +1,5 @@
 // Service worker: cache del app shell para uso offline y notificaciones del descanso.
-const VERSION = 'v1.4.1';
+const VERSION = 'v1.4.2';
 const CACHE = `2sets-${VERSION}`;
 // Librerías externas (Three.js) viven en una cache aparte que sobrevive a los cambios de VERSION.
 const VENDOR = '2sets-vendor-v1';
@@ -9,7 +9,7 @@ const SHELL = [
   './js/app.js', './js/ui.js', './js/db.js', './js/model.js', './js/templates.js', './js/timer.js',
   './js/charts.js', './js/quotes.js', './js/setrow.js', './js/backfill.js',
   './js/body.js', './js/stats.js', './js/sheet.js', './js/measure.js',
-  './js/avatar/params.js', './js/avatar/scene.js',
+  './js/avatar/params.js', './js/avatar/scene.js', './js/version.js',
   './js/screens/home.js', './js/screens/session.js', './js/screens/history.js', './js/screens/progress.js', './js/screens/settings.js',
   './assets/icons/icon.svg', './assets/icons/icon-192.png', './assets/icons/icon-512.png',
 ];

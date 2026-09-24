@@ -32,9 +32,40 @@ export function notifyStatus(permission, hasNotification, isStandalone) {
   return { key: 'ask', text: 'Activá las notificaciones para que el aviso llegue con la pantalla bloqueada.' };
 }
 
+// Alarma como archivo WAV (16 bits, 22050 Hz): seis bips alternados y una pausa corta, pensado para reproducirse en loop
+// con un elemento <audio>. En iPhone el <audio> sigue sonando en segundo plano y no lo apaga el interruptor de silencio.
+export function alarmWavDataUri() {
+  const sr = 22050;
+  const beep = 0.22, gap = 0.13, n = 6, tail = 0.6;
+  const total = n * (beep + gap) + tail;
+  const frames = Math.ceil(total * sr);
+  const buf = new Uint8Array(44 + frames * 2);
+  const view = new DataView(buf.buffer);
+  const str = (o, s) => { for (let i = 0; i < s.length; i++) buf[o + i] = s.charCodeAt(i); };
+  str(0, 'RIFF'); view.setUint32(4, 36 + frames * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sr, true); view.setUint32(28, sr * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  str(36, 'data'); view.setUint32(40, frames * 2, true);
+  for (let i = 0; i < n; i++) {
+    const f = i % 2 === 0 ? 880 : 1175;
+    const start = Math.floor(i * (beep + gap) * sr);
+    const len = Math.floor(beep * sr);
+    for (let k = 0; k < len; k++) {
+      const t = k / sr;
+      const env = Math.min(1, t / 0.01) * Math.min(1, (beep - t) / 0.04);
+      const v = Math.round(Math.sin(2 * Math.PI * f * t) * 0.9 * env * 32767);
+      view.setInt16(44 + (start + k) * 2, v, true);
+    }
+  }
+  let bin = '';
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+  const b64 = typeof btoa === 'function' ? btoa(bin) : Buffer.from(bin, 'binary').toString('base64');
+  return `data:audio/wav;base64,${b64}`;
+}
+
 const KEY = 'restEndAt';
 const hasDOM = typeof document !== 'undefined';
-const state = { endAt: 0, fired: false, tick: null, wake: null, silent: null, audioCtx: null, alarmBuffer: null, scheduled: [], label: '' };
+const state = { endAt: 0, fired: false, tick: null, wake: null, silent: null, alarmEl: null, alarmPrimed: false, audioCtx: null, alarmBuffer: null, scheduled: [], label: '' };
 const $ = (id) => document.getElementById(id);
 
 function persist() {
@@ -106,8 +137,9 @@ export function restoreRest() {
 }
 
 function onFirstTouch() {
-  if (!state.endAt || state.fired) return;
+  if (!state.endAt) return;
   unlockAudio();
+  if (state.fired) { playAlarmLoop(); return; }
   scheduleAlarm(remainingMs(state.endAt, Date.now()) / 1000);
   updateStatus();
 }
@@ -116,8 +148,26 @@ export function isResting() {
   return !!state.endAt && !state.fired;
 }
 
+// Suena la alarma un par de segundos, para probar el volumen del teléfono desde Ajustes.
+export function testAlarm() {
+  unlockAudio();
+  const el = getAlarmEl();
+  if (!el) return false;
+  el.loop = false;
+  el.currentTime = 0;
+  el.play().catch(() => {});
+  setTimeout(() => { try { el.pause(); el.currentTime = 0; el.loop = true; } catch {} }, 2600);
+  return true;
+}
+
 export function debugAudio() {
-  return { ctxState: state.audioCtx?.state ?? null, scheduled: state.scheduled.length, hasBuffer: !!state.alarmBuffer };
+  return {
+    ctxState: state.audioCtx?.state ?? null,
+    scheduled: state.scheduled.length,
+    hasBuffer: !!state.alarmBuffer,
+    primed: state.alarmPrimed,
+    loopPlaying: !!state.alarmEl && !state.alarmEl.paused && state.alarmEl.loop,
+  };
 }
 
 function loop() {
@@ -138,9 +188,9 @@ function draw() {
 function fire() {
   state.fired = true;
   clearInterval(state.tick);
-  // El sonido ya está programado en el audio; si el contexto quedó suspendido, al reanudar arranca de inmediato.
+  // Primero el <audio> en loop (suena hasta que el usuario cierra); si no puede, quedan los sonidos programados en Web Audio.
   try { state.audioCtx?.resume?.(); } catch {}
-  if (!state.scheduled.length) scheduleAlarm(0);
+  playAlarmLoop();
   vibrate();
   notify();
   $('rest-overlay')?.classList.add('done');
@@ -154,6 +204,7 @@ function stop() {
   state.endAt = 0;
   state.fired = false;
   cancelScheduled();
+  stopAlarmLoop();
   stopSilentAudio();
   releaseWake();
   forget();
@@ -211,8 +262,56 @@ function getCtx() {
   } catch { return null; }
 }
 
-// Crea o reanuda el contexto de audio. Solo tiene efecto real dentro de un gesto del usuario.
+function getAlarmEl() {
+  try {
+    if (!state.alarmEl) {
+      state.alarmEl = new Audio(alarmWavDataUri());
+      state.alarmEl.loop = true;
+      state.alarmEl.preload = 'auto';
+      state.alarmEl.volume = 1;
+      state.alarmEl.setAttribute('playsinline', '');
+    }
+    return state.alarmEl;
+  } catch { return null; }
+}
+
+// "Activa" el elemento de la alarma dentro del gesto: un play() seguido de pause() habilita reproducirlo después sin gesto.
+function primeAlarmEl() {
+  const el = getAlarmEl();
+  if (!el || state.alarmPrimed) return;
+  const done = () => { try { el.pause(); el.currentTime = 0; } catch {} el.muted = false; state.alarmPrimed = true; };
+  try {
+    el.muted = true; // la activación no tiene que escucharse
+    const p = el.play();
+    if (p && p.then) p.then(done).catch(() => { el.muted = false; });
+    else done();
+  } catch { el.muted = false; }
+}
+
+function playAlarmLoop() {
+  const el = getAlarmEl();
+  if (!el) return;
+  try {
+    el.loop = true;
+    el.currentTime = 0;
+    const p = el.play();
+    if (p && p.then) {
+      p.then(() => cancelScheduled()).catch(() => { if (!state.scheduled.length) scheduleAlarm(0); });
+    } else {
+      cancelScheduled();
+    }
+  } catch {
+    if (!state.scheduled.length) scheduleAlarm(0);
+  }
+}
+
+function stopAlarmLoop() {
+  try { if (state.alarmEl) { state.alarmEl.pause(); state.alarmEl.currentTime = 0; } } catch {}
+}
+
+// Crea o reanuda el contexto de audio y prepara el elemento de alarma. Solo tiene efecto real dentro de un gesto del usuario.
 function unlockAudio() {
+  primeAlarmEl();
   const ctx = getCtx();
   if (!ctx) return;
   try { if (ctx.state !== 'running') ctx.resume().then(updateStatus).catch(() => {}); } catch {}

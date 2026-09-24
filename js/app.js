@@ -63,4 +63,11 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   });
+  // Cuando un service worker nuevo toma el control (app actualizada), recargamos para correr el código nuevo ya.
+  // La sesión activa y el descanso en curso se restauran solos desde la base y localStorage.
+  let hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController) location.reload();
+    hadController = true;
+  });
 }
